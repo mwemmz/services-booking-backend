@@ -1,0 +1,26 @@
+const router = require('express').Router();
+const {
+  createBooking,
+  getAllBookings,
+  getBookingById,
+  updateBookingStatus,
+  cancelBooking,
+  getCustomerBookings,
+  getProviderBookings,
+} = require('../controllers/bookingController');
+const { authenticate, authorize } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const {
+  createBookingRules,
+  updateStatusRules,
+} = require('../validations/bookingValidation');
+
+router.post('/', authenticate, [...createBookingRules, validate], createBooking);
+router.get('/', authenticate, getAllBookings);
+router.get('/customer/:customerId', authenticate, getCustomerBookings);
+router.get('/provider/:providerId', authenticate, getProviderBookings);
+router.get('/:id', authenticate, getBookingById);
+router.put('/:id/status', authenticate, [...updateStatusRules, validate], updateBookingStatus);
+router.put('/:id/cancel', authenticate, cancelBooking);
+
+module.exports = router;

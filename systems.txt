@@ -1,0 +1,408 @@
+Services Booking App
+Build Prompt: Backend & Frontend Development, Phase by Phase
+1. Backend Prompts (Developer 2 — Node.js / Express / PostgreSQL)
+Phase 1: Database Design & Setup
+1. Design PostgreSQL schema with tables for:
+   - Users (id, name, email, password_hash, phone, role, created_at)
+   - Providers (id, user_id, business_name, description, category,
+     is_verified, is_online, rating, location_lat, location_lng,
+     service_radius, verification_documents)
+   - Services (id, provider_id, name, description, price, duration,
+     category, is_active)
+   - Bookings (id, customer_id, provider_id, service_id, booking_time,
+     status, total_amount, location_lat, location_lng, address, notes)
+   - Payments (id, booking_id, amount, status, transaction_ref,
+     payment_method, created_at)
+   - Reviews (id, booking_id, customer_id, provider_id, rating, comment)
+   - Notifications (id, user_id, type, title, body, read, created_at)
+   - Locations (id, booking_id, provider_id, latitude, longitude, timestamp)
+   - Categories (id, name, icon)
+
+2. Create migration scripts with proper foreign keys, indexes, and constraints
+3. Implement connection pooling and environment variable configuration
+Phase 2: Authentication & User Management
+1. Build authentication endpoints:
+   - POST /api/auth/register — user registration with password hashing (bcrypt)
+   - POST /api/auth/login — JWT token generation
+   - POST /api/auth/logout — token invalidation
+   - POST /api/auth/refresh-token — token refresh
+   - GET /api/auth/me — get current user profile
+   - PUT /api/auth/update-profile — update user details
+
+2. Implement role-based access control (RBAC): Customer, Provider, Admin
+3. Add email verification flow (optional)
+4. Implement password reset functionality
+5. Add rate limiting and security headers
+6. Create middleware for JWT verification and role checking
+Phase 3: Provider & Service Management
+1. Build provider endpoints:
+   - POST /api/providers/register — register as provider
+   - GET /api/providers — list all providers with filters
+   - GET /api/providers/:id — get provider details
+   - PUT /api/providers/:id — update provider profile
+   - PUT /api/providers/:id/status — toggle online/offline
+   - GET /api/providers/nearby — find providers by location
+
+2. Build service endpoints:
+   - POST /api/services — create new service
+   - GET /api/services — list services (with filters)
+   - GET /api/services/:id — get service details
+   - PUT /api/services/:id — update service
+   - DELETE /api/services/:id — delete service
+   - GET /api/providers/:id/services — get provider's services
+
+3. Add validation for provider registration (Zod or Joi)
+4. Implement service search and filtering
+5. Add image upload for provider/service photos (Cloudinary/Firebase)
+Phase 4: Booking System
+1. Build booking endpoints:
+   - POST /api/bookings — create new booking
+   - GET /api/bookings — list bookings (with filters for role)
+   - GET /api/bookings/:id — get booking details
+   - PUT /api/bookings/:id/status — update booking status
+   - PUT /api/bookings/:id/cancel — cancel booking
+   - GET /api/customers/:id/bookings — customer's booking history
+   - GET /api/providers/:id/bookings — provider's bookings
+
+2. Implement booking workflow:
+   - Customer requests service (status: pending)
+   - Provider receives notification (status: assigned)
+   - Provider accepts/rejects (status: accepted/rejected)
+   - Provider starts service (status: in-progress)
+   - Provider completes service (status: completed)
+   - Customer pays (status: paid)
+
+3. Add business logic:
+   - Check provider availability before booking
+   - Prevent double booking of same time slot
+   - Calculate estimated arrival time
+   - Set booking expiration time for pending requests
+Phase 5: Real-time & Maps Integration
+1. Set up Socket.IO:
+   - Configure Socket.IO server with authentication
+   - Create events: 'location-update', 'booking-status',
+     'provider-arriving', 'notification'
+   - Implement provider location broadcasting to customers
+   - Add room-based communication (booking-specific rooms)
+
+2. Build location endpoints:
+   - PUT /api/locations/provider — update provider location
+   - GET /api/locations/booking/:id — get booking location history
+   - POST /api/locations/calculate-distance — calculate distance
+   - POST /api/locations/geocode — address to coordinates
+
+3. Integrate Google Maps APIs:
+   - Directions API for route calculation
+   - Distance Matrix API for ETA
+   - Geocoding API for address conversion
+Phase 6: Payment Integration
+1. Build payment endpoints:
+   - POST /api/payments/initialize — start payment
+   - POST /api/payments/verify — verify payment status
+   - GET /api/payments/booking/:id — get booking payments
+   - POST /api/payments/webhook — handle payment gateway webhooks
+
+2. Integrate Zambian payment gateway:
+   - Implement payment initialization (Zambian payment API)
+   - Add webhook handling for payment confirmation
+   - Create transaction records
+   - Implement refund/cancellation handling
+
+3. Add payment calculation:
+   - Service price calculation with tax
+   - Discount handling
+   - Payment status tracking
+   - Receipt generation
+Phase 7: Notifications
+1. Build notification endpoints:
+   - GET /api/notifications — get user notifications
+   - PUT /api/notifications/:id/read — mark as read
+   - PUT /api/notifications/read-all — mark all as read
+   - DELETE /api/notifications/:id — delete notification
+
+2. Implement Firebase Cloud Messaging — send push notifications for:
+   - Booking confirmation
+   - Booking status updates
+   - Provider acceptance/rejection
+   - Provider arriving
+   - Payment confirmation
+   - Promotional messages
+
+3. Add email notifications (optional with Nodemailer)
+4. Create in-app notification system
+Phase 8: Admin Panel
+1. Build admin endpoints:
+   - GET /api/admin/users — user management
+   - GET /api/admin/providers — provider management
+   - PUT /api/admin/providers/:id/verify — verify provider
+   - GET /api/admin/bookings — booking management
+   - GET /api/admin/analytics — dashboard analytics
+   - GET /api/admin/reports — generate reports
+
+2. Add analytics endpoints:
+   - Total bookings, revenue, users
+   - Booking trends
+   - Provider performance metrics
+   - Customer satisfaction metrics
+
+2. Frontend Prompts (Developer 1 — Flutter)
+Build a cross-platform mobile app (Android + iOS) using Flutter — not a web app. Target Flutter's mobile platforms only.
+Phase 1: Project Setup & Navigation
+1. Initialize Flutter project with:
+   - Proper folder structure (lib/models, lib/screens, lib/widgets, lib/services)
+   - Navigation setup with named routes
+   - Role-based routing (customer vs provider)
+   - Theme configuration (colors, typography)
+
+2. Create shared components:
+   - AppBar widget
+   - Bottom navigation bar
+   - Loading indicator
+   - Error widget
+   - Custom buttons
+   - Input fields
+   - Dropdown selectors
+
+3. Setup dependency injection (GetIt or Provider)
+4. Configure environment variables (API URLs, API keys)
+5. Setup HTTP client with Dio (interceptors, error handling)
+Phase 2: Authentication Screens
+1. Build screens:
+   - Splash Screen (with app logo/loading)
+   - Onboarding Screen (3 slides: intro, features, get started)
+   - Login Screen (email/password, role selection, forgot password)
+   - Registration Screen (name, email, phone, password, role selection)
+   - Provider Registration Screen (business details, documents, services)
+   - OTP Verification Screen
+   - Forgot Password Screen
+
+2. Implement state management:
+   - AuthProvider for login/logout state
+   - Secure storage for JWT token
+   - Auto-login if token exists
+   - Role-based redirect after login
+Phase 3: Customer App Screens
+1. Home Screen:
+   - Location selection bar (current location, enter address)
+   - Category grid (Plumbing, Electrical, Cleaning, etc.)
+   - Featured providers/special offers
+   - Recent bookings section
+   - Quick service request button
+
+2. Service Selection Screen:
+   - Category-based service list
+   - Service search/filter
+   - Service details (name, description, price, provider info)
+   - Provider profiles with ratings/reviews
+
+3. Booking Screen:
+   - Service selection
+   - Date/time picker
+   - Location selection (map or address input)
+   - Special instructions input
+   - Price estimate calculation
+   - Confirm booking button
+
+4. Tracking Screen:
+   - Map with provider location
+   - Real-time location updates
+   - ETA display
+   - Provider info (name, photo, rating, phone)
+   - Booking status updates
+   - Cancel booking option
+
+5. Payment Screen:
+   - Payment method selection
+   - Amount display
+   - Payment gateway integration
+   - Receipt/confirmation after payment
+
+6. Profile Screen:
+   - User info (name, email, phone)
+   - Booking history
+   - Reviews given
+   - Payment methods
+   - Settings (notifications, privacy, logout)
+Phase 4: Provider App Screens
+1. Dashboard Screen:
+   - Earnings summary (today, week, month)
+   - Booking stats (completed, pending, cancelled)
+   - Quick actions (online/offline toggle)
+   - Recent bookings list
+   - Performance metrics (rating, completion rate)
+
+2. Requests Screen:
+   - Incoming booking requests (real-time)
+   - Accept/Reject buttons
+   - Request details (customer info, service, location, time)
+   - Countdown timer for request expiration
+
+3. Navigation Screen:
+   - Map with route to customer location
+   - Turn-by-turn navigation
+   - Arrival confirmation button
+   - Start service button
+   - Complete service button
+
+4. Earnings Screen:
+   - Earnings breakdown
+   - Withdrawal options
+   - Transaction history
+   - Payment reports
+
+5. Reviews Screen:
+   - Customer ratings
+   - Review comments
+   - Average rating display
+   - Response to reviews
+
+6. Profile Screen:
+   - Business info (name, description, category)
+   - Services management (add/edit/delete)
+   - Working hours
+   - Service area/radius
+   - Verification documents
+   - Settings
+Phase 5: Map & Location Features
+1. Setup Google Maps:
+   - Initialize Google Maps Platform
+   - Add map to screens (customer home, tracking, provider navigation)
+   - Custom markers for customers and providers
+
+2. Implement map features:
+   - Current location detection with permission handling
+   - Location search with autocomplete
+   - Provider location tracking (using Socket.IO)
+   - Route visualization (polyline between points)
+   - Distance and ETA calculation
+   - Animate camera to follow provider movement
+   - Zoom controls
+
+3. Build location components:
+   - LocationPicker widget
+   - Address autocomplete search bar
+   - Map controls (center on user, zoom)
+   - Info windows for markers
+Phase 6: Real-time Communication
+1. Setup Socket.IO:
+   - Configure socket connection with JWT auth
+   - Create socket service class
+   - Handle reconnection logic
+
+2. Implement real-time features:
+   - Listen for provider location updates
+   - Listen for booking status changes
+   - Listen for incoming requests (provider side)
+   - Listen for new notifications
+   - Emit location updates (provider)
+   - Emit booking actions (accept/reject/complete)
+
+3. Add real-time UI updates:
+   - Animated marker movement on map
+   - Status badge updates without refresh
+   - Request notification popup (provider)
+   - Booking progress indicator
+Phase 7: Notifications & Payment Integration
+1. Setup Firebase Cloud Messaging:
+   - Configure firebase in Flutter project
+   - Implement push notification handling
+   - Handle notification navigation (deep linking)
+   - Show local notifications when app is in background
+
+2. Build Notification Screen:
+   - List of all notifications
+   - Read/unread status
+   - Clear notifications
+   - Notification actions
+
+3. Integrate Payment Gateway:
+   - Payment method selection UI
+   - Integration with payment SDK (if available)
+   - WebView for payment gateway
+   - Payment success/failure handling
+   - Receipt UI
+Phase 8: Admin Panel (Optional)
+1. Build admin screens:
+   - Dashboard with analytics
+   - User management (list, filter, block)
+   - Provider management (list, verify, review)
+   - Booking management (list, filter, cancel)
+   - Service management
+   - Reports (download CSV/PDF)
+
+2. Admin features:
+   - Role-based access for admin users
+   - Statistical charts (BarChart, PieChart)
+   - Data export functionality
+   - Search and filter capabilities
+
+3. Common Connection Prompts
+API Integration
+1. Create API Service Layer:
+   - AuthService for authentication endpoints
+   - BookingService for booking operations
+   - ProviderService for provider operations
+   - PaymentService for payment operations
+   - NotificationService for notification handling
+   - LocationService for map/location operations
+
+2. Implement repository pattern:
+   - Abstract API calls in repositories
+   - Add caching for frequently accessed data
+   - Handle offline scenarios with local storage
+
+3. Error handling:
+   - Global error interceptor
+   - User-friendly error messages
+   - Retry logic for failed requests
+   - Connection status monitoring
+State Management
+1. Choose state management (Provider, Riverpod, or Bloc):
+   - User state (auth, profile)
+   - Booking state (current booking, history)
+   - Location state (current location, tracking)
+   - Notification state (unread count, list)
+   - UI state (loading, error, success)
+
+2. Implement notifications for state changes:
+   - Provider location updates
+   - Booking status changes
+   - New notifications
+
+4. Crucial Prompts to Get Right
+Calendar / Time Management
+1. Backend:
+   - Provider availability management
+   - Time slot reservation
+   - Conflict detection
+   - Booking duration calculation
+
+2. Frontend:
+   - Calendar widget for date selection
+   - Time slot picker (showing available slots)
+   - Time zone handling
+   - Booking duration display
+Zoom Integration (if needed)
+1. Backend:
+   - Zoom OAuth flow
+   - Meeting creation endpoints
+   - Meeting link generation
+   - Meeting data storage
+
+2. Frontend:
+   - Zoom SDK integration
+   - Join meeting button
+   - Meeting status display
+File Upload
+1. Backend:
+   - File upload endpoints (Cloudinary/Firebase)
+   - File type validation
+   - Size limits
+   - Image optimization
+
+2. Frontend:
+   - Image picker (camera/gallery)
+   - Document upload (PDF, images)
+   - Upload progress indicator
+   - Image preview
+This document is structured to be fed directly to a coding agent, phase by phase — covering database design, authentication, core features, real-time communication, payments, notifications, and admin tooling for both the Node.js backend and the Flutter frontend.
