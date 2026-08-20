@@ -1,7 +1,7 @@
 const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const config = require('./config/config');
+const config = require('./config');
 
 let io;
 
