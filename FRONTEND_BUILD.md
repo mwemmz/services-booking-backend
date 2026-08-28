@@ -52,6 +52,15 @@ The backend is **already built, deployed, and live**. You are building ONLY the 
 - Notifications: `GET /api/notifications`, `GET /api/notifications/unread-count`, `PUT /api/notifications/:id/read`, `PUT /api/notifications/read-all`
 - Locations: `PUT /api/locations/provider`, `GET /api/locations/booking/:bookingId`, `POST /api/locations/calculate-distance`
 
+### Advanced feature endpoints (7 added features)
+- **Verified Skills Passport:** `POST /api/certifications`, `GET /api/certifications/provider/:providerId`
+- **Confirmed Work History:** `GET /api/bookings/provider/:providerId/work-history` (adds `is_confirmed = true` at `completed` status)
+- **Crew/Team Booking:** `POST /api/crews` (create crew), `GET /api/crews/mine`, `GET /api/crews/:id`, `POST /api/crews/:id/members`, then add `crew_id` to the booking payload
+- **Dispute/Safety Reporting:** `POST /api/disputes`, `GET /api/disputes/mine` (type = `dispute` or `safety`)
+- **National Digital ID:** `POST /api/national-id/submit`, `GET /api/national-id/status`
+- **Financial Inclusion Summary:** `GET /api/insights/financial` (or `/api/insights/financial/:providerId`)
+- **Coverage Insights:** `GET /api/insights/coverage` (or `/api/insights/coverage/:providerId`)
+
 ### Booking status flow (used for UI badges/actions)
 ```
 pending → accepted → in-progress → completed → paid
@@ -271,6 +280,17 @@ if (fix != null && fix.accuracy != null && fix.accuracy! <= 15) {
 - Reports (`/api/admin/reports`)
 - Charts (fl_chart), data export, search/filter
 - Admin role-based access
+
+### Phase 9: Advanced Features (7 new backend features)
+1. **Verified Skills Passport** — Provider profile screen: add certifications (`POST /api/certifications`), show verified badges (admin verifies). Show `is_verified` on provider profile.
+2. **Confirmed Work History** — Provider dashboard: "Jobs" tab with work history (`GET /api/bookings/provider/:id/work-history`). Show summary cards: confirmedJobs, totalEarned, totalJobs, average. Note: a job only appears here after it is `completed`.
+3. **Crew/Team Booking** — Provider: create/edit crews (`POST /api/crews`, `POST /api/crews/:id/members`, `DELETE /api/crews/:id/members/:memberId`). Customer: when booking, optional crew selector — pass `crew_id` alongside the normal booking fields; show crew info on booking details.
+4. **Dispute/Safety Reporting** — After a booking, "Report an issue" screen: choose type (Dispute / Safety concern), reason + description, submit (`POST /api/disputes`), list mine (`GET /api/disputes/mine`) with `status` badges (open/resolved/closed).
+5. **National Digital ID** — Settings/Profile: submit ID number (`POST /api/national-id/submit`), show verification status (`GET /api/national-id/status`). A verified badge can boost provider trust.
+6. **Financial Inclusion Summary** — Provider dashboard card: `GET /api/insights/financial` → totalEarned, thisWeekJobs, thisMonthJobs, averagePerJob, repeatCustomers. (Free alternative to payment-partner dashboards / PDF exports.)
+7. **Coverage Insights** — Provider dashboard: coverage card `GET /api/insights/coverage` → locationsCount, uniqueAreas, avgRating, activeCrews, plus recent job locations for a simple map heatmap.
+
+**Frontend offline alternative:** for features that need external real keys (payments, notifications), you can still build + demo the UI with mock data, since the backend already accepts/returns the full shapes above.
 
 ---
 
