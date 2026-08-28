@@ -207,6 +207,29 @@ The crew must belong to the chosen provider (leader). Booking response includes 
 
 ---
 
+## 13. Disputes & Safety Reporting
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/disputes` | File a dispute or safety report for a booking | customer/provider |
+| GET | `/api/disputes/mine` | My submitted reports | Yes |
+| GET | `/api/disputes` | All reports (filter `?status=&type=`) | admin |
+| PUT | `/api/disputes/:id/resolve` | Resolve/close a report `{status, resolution_note?}` | admin |
+
+**Create report payload:**
+```json
+{
+  "booking_id": "<booking-uuid>",
+  "type": "safety",
+  "reason": "Provider behaved inappropriately",
+  "description": "Optional longer description"
+}
+```
+- `type` is `dispute` or `safety` (defaults to `dispute`).
+- `status` starts as `open` → admin moves to `resolved`/`closed`.
+
+---
+
 ## Real-time (Socket.IO)
 
 **Connect to:** `wss://services-booking-backend-3wbl.onrender.com`
