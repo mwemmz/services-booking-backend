@@ -230,6 +230,20 @@ The crew must belong to the chosen provider (leader). Booking response includes 
 
 ---
 
+## 14. National Digital ID (readiness)
+
+Self-attest your National ID number; an admin marks it verified. This prepares the platform for a national digital ID integration (e.g., Kenya's eklesha 2.0). **The app does NOT store raw ID documents — only the ID number + a verified flag.**
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/national-id/submit` | Submit my National ID `{national_id_number}` | Yes |
+| GET | `/api/national-id/status` | My verification status | Yes |
+| PUT | `/api/national-id/users/:userId/verify` | Mark a user's National ID verified | admin |
+
+Submitting a new ID resets `national_id_verified` to `false` (requires re-review).
+
+---
+
 ## Real-time (Socket.IO)
 
 **Connect to:** `wss://services-booking-backend-3wbl.onrender.com`
