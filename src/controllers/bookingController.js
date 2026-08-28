@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Booking, User, Provider, Service, Payment } = require('../models');
+const { Booking, User, Provider, Service, Payment, Crew } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { checkAvailability, generateSlots } = require('../services/bookingAvailability');
 
@@ -12,7 +12,7 @@ const VALID_TRANSITIONS = {
 
 exports.createBooking = async (req, res) => {
   try {
-    const { provider_id, service_id, booking_time, location_lat, location_lng, address, notes } = req.body;
+    const { provider_id, service_id, booking_time, location_lat, location_lng, address, notes, crew_id } = req.body;
 
     const service = await Service.findByPk(service_id);
     if (!service || !service.is_active) {
@@ -22,6 +22,15 @@ exports.createBooking = async (req, res) => {
     const provider = await Provider.findByPk(provider_id);
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found.' });
+    }
+
+    // If booking a crew, the crew must exist and belong to this provider.
+    if (crew_id) {
+      const crew = await Crew.findByPk(crew_id);
+      if (!crew) return res.status(404).json({ message: 'Crew not found.' });
+      if (crew.leader_id !== provider_id) {
+        return res.status(400).json({ message: 'Crew does not belong to the chosen provider.' });
+      }
     }
 
     // Prevent double-booking of the same provider/service time slot.
@@ -51,6 +60,7 @@ exports.createBooking = async (req, res) => {
       location_lng,
       address,
       notes,
+      crew_id: crew_id || null,
       expires_at: expiresAt,
       status: 'pending',
     });
@@ -60,6 +70,7 @@ exports.createBooking = async (req, res) => {
         { model: User, as: 'customer' },
         { model: Provider, as: 'provider' },
         { model: Service, as: 'service' },
+        { model: Crew, as: 'crew' },
       ],
     });
 
@@ -169,6 +180,7 @@ exports.getBookingById = async (req, res) => {
         { model: Provider, as: 'provider', include: [{ model: User, as: 'user' }] },
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
+        { model: Crew, as: 'crew', include: [{ model: Provider, as: 'members' }] },
       ],
     });
 

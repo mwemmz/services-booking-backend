@@ -62,6 +62,10 @@ const Booking = sequelize.define('Booking', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  crew_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
 }, {
   tableName: 'bookings',
   timestamps: true,

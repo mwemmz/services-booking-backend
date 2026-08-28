@@ -25,6 +25,7 @@ const locationRoutes = require('./routes/locations');
 const categoryRoutes = require('./routes/categories');
 const uploadRoutes = require('./routes/uploads');
 const certificationRoutes = require('./routes/certifications');
+const crewRoutes = require('./routes/crews');
 
 const app = express();
 const server = http.createServer(app);
@@ -67,6 +68,7 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/certifications', certificationRoutes);
+app.use('/api/crews', crewRoutes);
 
 // Serve uploaded files (base64 uploads) statically.
 app.use('/uploads', express.static(UPLOAD_DIR));

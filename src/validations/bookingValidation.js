@@ -5,6 +5,7 @@ const createBookingRules = [
   body('service_id').notEmpty().withMessage('Service ID is required'),
   body('booking_time').isISO8601().withMessage('A valid ISO 8601 date is required'),
   body('address').optional().notEmpty().withMessage('Address cannot be empty'),
+  body('crew_id').optional().isUUID().withMessage('crew_id must be a valid UUID'),
 ];
 
 const updateStatusRules = [

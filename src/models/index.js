@@ -29,6 +29,10 @@ Provider.belongsToMany(Crew, { through: CrewMember, foreignKey: 'provider_id', a
 Booking.hasMany(Dispute, { foreignKey: 'booking_id', as: 'disputes' });
 Dispute.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 
+// Crew booking association
+Booking.belongsTo(Crew, { foreignKey: 'crew_id', as: 'crew' });
+Crew.hasMany(Booking, { foreignKey: 'crew_id', as: 'bookings' });
+
 Provider.hasMany(Service, { foreignKey: 'provider_id', as: 'services' });
 Service.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 

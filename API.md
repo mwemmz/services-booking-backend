@@ -174,6 +174,39 @@ pending/accepted → cancelled
 
 ---
 
+## 12. Crews - Team Booking (hotel & cleaning offers)
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/crews` | Create a crew (I'm the leader) | provider |
+| GET | `/api/crews/mine` | My crews with members | provider |
+| GET | `/api/crews/:id` | Crew + members + their user info | public |
+| POST | `/api/crews/:id/members` | Add a provider member to crew `{provider_id}` | provider |
+| DELETE | `/api/crews/:id/members/:memberId` | Remove a member | provider |
+| DELETE | `/api/crews/:id` | Delete a crew | leader/admin |
+
+**Create crew payload:**
+```json
+{
+  "name": "Dream Team",
+  "member_ids": ["<provider-uuid>", "<provider-uuid>"]
+}
+```
+
+**Booking a crew:** add `crew_id` to the normal booking payload:
+```json
+{
+  "provider_id": "<leader-provider-uuid>",
+  "service_id": "<service-uuid>",
+  "booking_time": "2026-09-01T10:00:00.000Z",
+  "crew_id": "<crew-uuid>",
+  "address": "123 Main St"
+}
+```
+The crew must belong to the chosen provider (leader). Booking response includes `crew` with its members.
+
+---
+
 ## Real-time (Socket.IO)
 
 **Connect to:** `wss://services-booking-backend-3wbl.onrender.com`
