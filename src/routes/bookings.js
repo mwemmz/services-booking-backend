@@ -7,6 +7,7 @@ const {
   cancelBooking,
   getCustomerBookings,
   getProviderBookings,
+  getWorkHistory,
   checkAvailabilityEndpoint,
   getProviderSlots,
 } = require('../controllers/bookingController');
@@ -23,6 +24,7 @@ router.get('/slots', getProviderSlots);
 router.get('/', authenticate, getAllBookings);
 router.get('/customer/:customerId', authenticate, getCustomerBookings);
 router.get('/provider/:providerId', authenticate, getProviderBookings);
+router.get('/provider/:providerId/work-history', authenticate, getWorkHistory);
 router.get('/:id', authenticate, getBookingById);
 router.put('/:id/status', authenticate, [...updateStatusRules, validate], updateBookingStatus);
 router.put('/:id/cancel', authenticate, cancelBooking);

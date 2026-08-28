@@ -79,6 +79,7 @@ Authorization: Bearer <accessToken>
 | GET | `/api/bookings/:id` | Yes | Booking + customer + provider + service + payment |
 | GET | `/api/bookings/customer/:customerId` | Yes | Customer's booking history |
 | GET | `/api/bookings/provider/:providerId` | Yes | Provider's bookings |
+| GET | `/api/bookings/provider/:providerId/work-history` | Yes | Provider's confirmed jobs + summary (totalEarned, confirmedJobs) |
 | PUT | `/api/bookings/:id/status` | Yes | Body: `{status}` — see statuses below |
 | PUT | `/api/bookings/:id/cancel` | Yes | Cancel (only when pending/accepted) |
 
@@ -89,6 +90,8 @@ pending → rejected
 pending → expired (auto after 15 min)
 pending/accepted → cancelled
 ```
+
+**Confirmed Work History:** a booking is marked `is_confirmed = true` when it reaches `completed`. Only confirmed bookings count in `/work-history` and future reputation/reporting. So a booking must go through `completed` to count. `paid` is the last step (payment confirmation).
 
 ---
 

@@ -198,7 +198,13 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
-    await booking.update({ status });
+    const updates = { status };
+    // Mark as confirmed work history once the job is completed.
+    if (status === 'completed') {
+      updates.is_confirmed = true;
+    }
+
+    await booking.update(updates);
 
     return res.json({ message: 'Booking status updated.', booking });
   } catch (error) {
@@ -261,6 +267,47 @@ exports.getCustomerBookings = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch bookings.', error: error.message });
+  }
+};
+
+// Feature 2: Confirmed Work History - only bookings marked is_confirmed count.
+exports.getWorkHistory = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+
+    const provider = await Provider.findOne({ where: { user_id: req.params.providerId || req.user.id } });
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider not found.' });
+    }
+
+    const where = { provider_id: provider.id, is_confirmed: true };
+
+    const [bookings, confirmedCount, totalEarned, jobCount] = await Promise.all([
+      Booking.findAll(paginate({
+        where,
+        include: [
+          { model: User, as: 'customer' },
+          { model: Service, as: 'service' },
+          { model: Payment, as: 'payment' },
+        ],
+        order: [['updatedAt', 'DESC']],
+      }, { page, limit })),
+      Booking.count({ where }),
+      Booking.sum('total_amount', { where: { ...where, status: { [Op.ne]: 'cancelled' } } }),
+      Booking.count({ where: { provider_id: provider.id } }),
+    ]);
+
+    return res.json({
+      summary: {
+        confirmedJobs: confirmedCount,
+        totalEarned: totalEarned || 0,
+        totalJobs: jobCount,
+      },
+      bookings,
+      pagination: buildPaginationResponse(confirmedCount, page, limit),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch work history.', error: error.message });
   }
 };
 
