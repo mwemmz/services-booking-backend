@@ -244,6 +244,43 @@ Submitting a new ID resets `national_id_verified` to `false` (requires re-review
 
 ---
 
+## 15. Insights - Financial Inclusion Summary & Coverage
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/insights/financial/:providerId` | Financial summary for a provider | provider/admin |
+| GET | `/api/insights/coverage/:providerId` | Geographic coverage insights | provider/admin |
+| GET | `/api/insights/financial` | My financial summary | provider |
+| GET | `/api/insights/coverage` | My coverage insights | provider |
+
+### Financial summary response
+```json
+{
+  "summary": {
+    "totalEarned": 12500,
+    "totalJobs": 12,
+    "averagePerJob": "1041.67",
+    "thisWeekJobs": 3,
+    "thisMonthJobs": 8,
+    "repeatCustomers": 5,
+    "paymentMethods": ["MPESA", "cash"]
+  }
+}
+```
+Only **confirmed bookings** (`is_confirmed = true`) count toward the summary.
+
+### Coverage insights response
+```json
+{
+  "coverage": { "locationsCount": 9, "uniqueAreas": 4, "avgRating": "4.60", "activeCrews": 1 },
+  "jobLocations": [{ "latitude": -1.28, "longitude": 36.82, "createdAt": "..." }],
+  "recentLocationFixes": [{ "latitude": -1.28, "longitude": 36.82, "accuracy": 12.5 }]
+}
+```
+`uniqueAreas` = number of ~0.01° grid cells the provider has served (an estimate where there is no reverse-geocoder).
+
+---
+
 ## Real-time (Socket.IO)
 
 **Connect to:** `wss://services-booking-backend-3wbl.onrender.com`
