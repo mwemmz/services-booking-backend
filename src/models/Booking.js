@@ -58,6 +58,10 @@ const Booking = sequelize.define('Booking', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  is_confirmed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
 }, {
   tableName: 'bookings',
   timestamps: true,

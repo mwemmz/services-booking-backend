@@ -38,6 +38,30 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  email_verified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  email_verify_token: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
+  reset_token: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
+  reset_token_expires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  national_id_number: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  national_id_verified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

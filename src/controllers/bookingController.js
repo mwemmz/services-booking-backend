@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { Booking, User, Provider, Service, Payment } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
+const { checkAvailability, generateSlots } = require('../services/bookingAvailability');
 
 const VALID_TRANSITIONS = {
   pending: ['accepted', 'rejected', 'cancelled'],
@@ -21,6 +22,20 @@ exports.createBooking = async (req, res) => {
     const provider = await Provider.findByPk(provider_id);
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found.' });
+    }
+
+    // Prevent double-booking of the same provider/service time slot.
+    const availability = await checkAvailability({
+      providerId: provider_id,
+      serviceId: service_id,
+      bookingTime: booking_time,
+      serviceDurationMin: service.duration,
+    });
+    if (!availability.available) {
+      return res.status(409).json({
+        message: 'This time slot is already booked for the provider.',
+        conflict_id: availability.conflict,
+      });
     }
 
     const now = new Date();
@@ -51,6 +66,58 @@ exports.createBooking = async (req, res) => {
     return res.status(201).json({ message: 'Booking created.', booking: fullBooking });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to create booking.', error: error.message });
+  }
+};
+
+/**
+ * Check whether a provider is free at a given time. Public availability check.
+ */
+exports.checkAvailabilityEndpoint = async (req, res) => {
+  try {
+    const { provider_id, service_id, booking_time } = req.query;
+    if (!provider_id || !booking_time) {
+      return res.status(400).json({ message: 'provider_id and booking_time are required.' });
+    }
+
+    let duration = null;
+    if (service_id) {
+      const service = await Service.findByPk(service_id);
+      if (service) duration = service.duration;
+    }
+
+    const result = await checkAvailability({
+      providerId: provider_id,
+      serviceId: service_id,
+      bookingTime: booking_time,
+      serviceDurationMin: duration || 60,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to check availability.', error: error.message });
+  }
+};
+
+/**
+ * Generate available time slots for a provider on a given date.
+ */
+exports.getProviderSlots = async (req, res) => {
+  try {
+    const { provider_id, date, slot_minutes, duration } = req.query;
+    if (!provider_id || !date) {
+      return res.status(400).json({ message: 'provider_id and date are required.' });
+    }
+
+    const result = await generateSlots({
+      providerId: provider_id,
+      date,
+      slotMinutes: slot_minutes ? parseInt(slot_minutes) : 30,
+      durationMin: duration ? parseInt(duration) : null,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to generate slots.', error: error.message });
   }
 };
 

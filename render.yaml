@@ -58,3 +58,5 @@ services:
         sync: false
       - key: SMTP_PASS
         sync: false
+      - key: FRONTEND_URL
+        value: "https://services-booking-backend-3wbl.onrender.com"

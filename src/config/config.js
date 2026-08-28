@@ -47,4 +47,5 @@ module.exports = {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
 };

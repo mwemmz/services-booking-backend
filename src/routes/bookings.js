@@ -7,6 +7,8 @@ const {
   cancelBooking,
   getCustomerBookings,
   getProviderBookings,
+  checkAvailabilityEndpoint,
+  getProviderSlots,
 } = require('../controllers/bookingController');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
@@ -16,6 +18,8 @@ const {
 } = require('../validations/bookingValidation');
 
 router.post('/', authenticate, [...createBookingRules, validate], createBooking);
+router.get('/available', checkAvailabilityEndpoint);
+router.get('/slots', getProviderSlots);
 router.get('/', authenticate, getAllBookings);
 router.get('/customer/:customerId', authenticate, getCustomerBookings);
 router.get('/provider/:providerId', authenticate, getProviderBookings);

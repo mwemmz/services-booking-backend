@@ -7,9 +7,27 @@ const Review = require('./Review');
 const Notification = require('./Notification');
 const Location = require('./Location');
 const Category = require('./Category');
+const Certification = require('./Certification');
+const Crew = require('./Crew');
+const CrewMember = require('./CrewMember');
+const Dispute = require('./Dispute');
 
 User.hasOne(Provider, { foreignKey: 'user_id', as: 'providerProfile' });
 Provider.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Certification associations
+Provider.hasMany(Certification, { foreignKey: 'provider_id', as: 'certifications' });
+Certification.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
+
+// Crew associations
+Provider.hasMany(Crew, { foreignKey: 'leader_id', as: 'crewsLed' });
+Crew.belongsTo(Provider, { foreignKey: 'leader_id', as: 'leader' });
+Crew.belongsToMany(Provider, { through: CrewMember, foreignKey: 'crew_id', as: 'members' });
+Provider.belongsToMany(Crew, { through: CrewMember, foreignKey: 'provider_id', as: 'crews' });
+
+// Dispute associations
+Booking.hasMany(Dispute, { foreignKey: 'booking_id', as: 'disputes' });
+Dispute.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 
 Provider.hasMany(Service, { foreignKey: 'provider_id', as: 'services' });
 Service.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
@@ -45,4 +63,8 @@ module.exports = {
   Notification,
   Location,
   Category,
+  Certification,
+  Crew,
+  CrewMember,
+  Dispute,
 };

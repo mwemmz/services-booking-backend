@@ -10,6 +10,8 @@ const config = require('./config/config');
 const sequelize = require('./config/database');
 const { initSocket } = require('./config/socket');
 const errorHandler = require('./middleware/errorHandler');
+const { scheduleBookingExpiry } = require('./services/bookingExpiryCron');
+const { UPLOAD_DIR } = require('./services/uploadService');
 
 const authRoutes = require('./routes/auth');
 const providerRoutes = require('./routes/providers');
@@ -21,6 +23,8 @@ const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const locationRoutes = require('./routes/locations');
 const categoryRoutes = require('./routes/categories');
+const uploadRoutes = require('./routes/uploads');
+const certificationRoutes = require('./routes/certifications');
 
 const app = express();
 const server = http.createServer(app);
@@ -61,6 +65,11 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/certifications', certificationRoutes);
+
+// Serve uploaded files (base64 uploads) statically.
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
@@ -75,6 +84,8 @@ const startServer = async () => {
 
     await sequelize.sync({ alter: config.nodeEnv === 'development' });
     console.log('Database synced.');
+
+    scheduleBookingExpiry();
 
     server.listen(config.port, () => {
       console.log(`Server running on port ${config.port} in ${config.nodeEnv} mode`);

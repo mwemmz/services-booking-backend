@@ -149,6 +149,28 @@ pending/accepted → cancelled
 
 ---
 
+## 11. Certifications - Verified Skills Passport (hotel & cleaning offers)
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/certifications/` | Add a certification to my profile | provider |
+| GET | `/api/certifications/provider/:providerId` | Get a provider's certifications | public |
+| PUT | `/api/certifications/:id/verify` | Mark a certification verified | admin |
+| DELETE | `/api/certifications/:id` | Remove a certification | provider/admin |
+
+**Create certification payload:**
+```json
+{
+  "name": "OSHA Safety Certification",
+  "issuing_body": "OSHA",
+  "expiry_date": "2027-01-01T00:00:00.000Z",
+  "document_url": "/uploads/cert.pdf"
+}
+```
+`is_verified` defaults to `false`; admin verifies after review.
+
+---
+
 ## Real-time (Socket.IO)
 
 **Connect to:** `wss://services-booking-backend-3wbl.onrender.com`

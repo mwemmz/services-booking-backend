@@ -44,7 +44,7 @@ const sendBookingConfirmation = async (to, bookingDetails) => {
 };
 
 const sendPasswordReset = async (to, resetToken) => {
-  const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+  const resetLink = `${config.frontendUrl}/reset-password?token=${resetToken}`;
 
   const html = `
     <h2>Password Reset Request</h2>
@@ -57,8 +57,22 @@ const sendPasswordReset = async (to, resetToken) => {
   await sendEmail(to, 'Password Reset', html);
 };
 
+const sendEmailVerification = async (to, verifyToken) => {
+  const verifyLink = `${config.frontendUrl}/verify-email?token=${verifyToken}`;
+
+  const html = `
+    <h2>Verify Your Email</h2>
+    <p>Welcome! Please confirm your email address by clicking the link below:</p>
+    <a href="${verifyLink}" style="display: inline-block; padding: 12px 24px; background-color: #2196F3; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">Verify Email</a>
+    <p style="color: #666;">If you did not create an account, please ignore this email.</p>
+  `;
+
+  await sendEmail(to, 'Verify Your Email', html);
+};
+
 module.exports = {
   sendEmail,
   sendBookingConfirmation,
   sendPasswordReset,
+  sendEmailVerification,
 };
