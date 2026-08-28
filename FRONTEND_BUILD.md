@@ -212,6 +212,48 @@ lib/
 - Camera follow, zoom controls
 - Widgets: LocationPicker, address autocomplete bar, map controls, info windows
 
+**GPS accuracy (IMPORTANT):** use the included `location_service.dart` (in the backend repo root) for accurate tracking. It:
+- Uses `LocationAccuracy.best` (up to ±1-5m)
+- Rejects fixes worse than `maxAccuracyMeters` (default 50m)
+- Smooths GPS jitter with a moving average
+- Throttles Socket.IO emits (default: ≥3s apart AND ≥5m moved)
+- Exposes a `Stream<LocationFix>` for live map markers
+
+```dart
+final loc = LocationService(maxAccuracyMeters: 50, minIntervalMs: 3000);
+await loc.init();
+
+// Provider side — live broadcast
+loc.startProviderStream(socket: socketClient, bookingId: booking.id);
+
+// Customer side — listen on socket
+socketClient.on('provider-location', (d) {
+  // d: { providerId, latitude, longitude, accuracy, heading, timestamp }
+  final pos = LatLng(d['latitude'], d['longitude']);
+  marker.animateTo(pos); // update map
+});
+
+// Accuracry error circle so the user sees how precise the fix is
+Circle(
+  circleId: CircleId('acc'),
+  center: LatLng(lat, lng),
+  radius: accuracyMeters,  // shows live GPS error radius
+);
+
+// One-shot for booking address
+final fix = await loc.getCurrentAccurateLocation(timeout: Duration(seconds: 15));
+if (fix != null && fix.accuracy != null && fix.accuracy! <= 15) {
+  // good enough to use for the customer's location
+}
+```
+
+> **Backend location contract (with accuracy):**
+> - `PUT /api/locations/provider` body: `{latitude, longitude, booking_id?, accuracy?, heading?, speed?}`
+>   - Backend stores every fix but only updates the provider's live position if `accuracy <= 50m` (configurable via `LOCATION_MAX_ACCURACY`).
+>   - Response: `{ message, location, is_accurate, rejected_reason }`
+> - Provider broadcast includes `accuracy` + `heading` in the `provider-location` event.
+
+
 ### Phase 6: Real-time Communication
 - Socket.IO service class: connect with JWT auth, reconnection logic, reconnect on token refresh
 - Listen: provider location updates, booking status changes, incoming requests (provider), new notifications

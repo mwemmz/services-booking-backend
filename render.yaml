@@ -38,6 +38,10 @@ services:
         sync: false
       - key: GOOGLE_MAPS_API_KEY
         sync: false
+      - key: LOCATION_MAX_ACCURACY
+        value: "50"
+      - key: LOCATION_MIN_INTERVAL
+        value: "3"
       - key: PAYMENT_API_URL
         sync: false
       - key: PAYMENT_API_KEY

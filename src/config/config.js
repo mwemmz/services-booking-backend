@@ -31,6 +31,10 @@ module.exports = {
   googleMaps: {
     apiKey: process.env.GOOGLE_MAPS_API_KEY,
   },
+  location: {
+    maxAccuracyMeters: parseFloat(process.env.LOCATION_MAX_ACCURACY || '50'),
+    minIntervalSeconds: parseFloat(process.env.LOCATION_MIN_INTERVAL || '3'),
+  },
   payment: {
     apiUrl: process.env.PAYMENT_API_URL,
     apiKey: process.env.PAYMENT_API_KEY,

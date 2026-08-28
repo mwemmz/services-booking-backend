@@ -130,7 +130,7 @@ pending/accepted → cancelled
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| PUT | `/api/locations/provider` | provider | Body: `{latitude, longitude, booking_id?}` — update live location |
+| PUT | `/api/locations/provider` | provider | Body: `{latitude, longitude, booking_id?, accuracy?, heading?, speed?}` — update live location (accuracy in meters). If `accuracy > 50` the fix is stored but NOT applied to the provider's live position (response returns `is_accurate: false` + `rejected_reason`) |
 | GET | `/api/locations/booking/:bookingId` | Yes | Location history for a booking |
 | POST | `/api/locations/calculate-distance` | No | Body: `{lat1, lng1, lat2, lng2}` → `{distance_km}` |
 
@@ -168,7 +168,7 @@ io.connect(url, { auth: { token: accessToken } });
 **Events to listen (server → client):**
 | Event | Payload |
 |-------|---------|
-| `provider-location` | `{providerId, latitude, longitude, timestamp}` |
+| `provider-location` | `{providerId, latitude, longitude, accuracy, heading, timestamp}` |
 | `booking-status-update` | `{bookingId, action, updatedBy, timestamp}` |
 | `notification` | notification object |
 

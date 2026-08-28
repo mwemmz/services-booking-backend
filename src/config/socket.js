@@ -42,12 +42,14 @@ const initSocket = (server) => {
     });
 
     socket.on('location-update', (data) => {
-      const { bookingId, latitude, longitude } = data;
-      if (socket.userRole === 'provider') {
+      const { bookingId, latitude, longitude, accuracy, heading, isAccurate } = data;
+      if (socket.userRole === 'provider' && isAccurate !== false) {
         io.to(`booking:${bookingId}`).emit('provider-location', {
           providerId: socket.userId,
           latitude,
           longitude,
+          accuracy: accuracy != null ? accuracy : null,
+          heading: heading != null ? heading : null,
           timestamp: new Date().toISOString(),
         });
       }

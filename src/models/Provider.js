@@ -48,6 +48,15 @@ const Provider = sequelize.define('Provider', {
     type: DataTypes.DECIMAL(11, 8),
     allowNull: true,
   },
+  location_accuracy: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    comment: 'GPS accuracy in meters of the last fix',
+  },
+  last_location_update: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
   service_radius: {
     type: DataTypes.INTEGER,
     defaultValue: 10,
