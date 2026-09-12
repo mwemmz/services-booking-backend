@@ -58,7 +58,11 @@ exports.getAllProviders = async (req, res) => {
 
 exports.getProviderById = async (req, res) => {
   try {
-    const provider = await Provider.findByPk(req.params.id, {
+    // Accept either the provider profile id or the owning user id.
+    const provider = await Provider.findOne({
+      where: {
+        [Op.or]: [{ id: req.params.id }, { user_id: req.params.id }],
+      },
       include: [
         { model: User, as: 'user' },
         { model: Service, as: 'services', where: { is_active: true }, required: false },
