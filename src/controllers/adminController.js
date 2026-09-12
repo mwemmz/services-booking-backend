@@ -21,7 +21,7 @@ exports.getAllUsers = async (req, res) => {
     const query = paginate({
       where,
       attributes: publicUserAttributes,
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: users } = await User.findAndCountAll(query);
@@ -46,7 +46,7 @@ exports.getAllProviders = async (req, res) => {
     const query = paginate({
       where,
       include: [{ model: User, as: 'user', attributes: publicUserAttributes }],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: providers } = await Provider.findAndCountAll(query);
@@ -82,9 +82,9 @@ exports.getAllBookings = async (req, res) => {
     const where = {};
     if (status) where.status = status;
     if (date_from || date_to) {
-      where.created_at = {};
-      if (date_from) where.created_at[Op.gte] = new Date(date_from);
-      if (date_to) where.created_at[Op.lte] = new Date(date_to);
+      where.createdAt = {};
+      if (date_from) where.createdAt[Op.gte] = new Date(date_from);
+      if (date_to) where.createdAt[Op.lte] = new Date(date_to);
     }
 
     const query = paginate({
@@ -95,7 +95,7 @@ exports.getAllBookings = async (req, res) => {
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
       ],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: bookings } = await Booking.findAndCountAll(query);
@@ -128,7 +128,7 @@ exports.getAnalytics = async (req, res) => {
         { model: User, as: 'customer', attributes: publicUserAttributes },
         { model: Provider, as: 'provider' },
       ],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
       limit: 10,
     });
 
@@ -148,11 +148,11 @@ exports.getReports = async (req, res) => {
   try {
     const bookingTrends = await Booking.findAll({
       attributes: [
-        [sequelize.fn('DATE', sequelize.col('created_at')), 'date'],
+        [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
         [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
       ],
-      group: [sequelize.fn('DATE', sequelize.col('created_at'))],
-      order: [[sequelize.fn('DATE', sequelize.col('created_at')), 'DESC']],
+      group: [sequelize.fn('DATE', sequelize.col('createdAt'))],
+      order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'DESC']],
       limit: 30,
       raw: true,
     });
