@@ -3,6 +3,13 @@ const { Provider, User, Service } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { haversineDistance } = require('../utils/distance');
 
+/** Never expose auth secrets on public provider/user responses. */
+const publicUserAttributes = {
+  attributes: {
+    exclude: ['password_hash', 'reset_token', 'reset_token_expires', 'email_verify_token'],
+  },
+};
+
 exports.registerAsProvider = async (req, res) => {
   try {
     const existing = await Provider.findOne({ where: { user_id: req.user.id } });
@@ -41,7 +48,7 @@ exports.getAllProviders = async (req, res) => {
 
     const query = paginate({
       where,
-      include: [{ model: User, as: 'user' }],
+      include: [{ model: User, as: 'user', ...publicUserAttributes }],
       order: [['rating', 'DESC']],
     }, { page, limit });
 
@@ -64,7 +71,7 @@ exports.getProviderById = async (req, res) => {
         [Op.or]: [{ id: req.params.id }, { user_id: req.params.id }],
       },
       include: [
-        { model: User, as: 'user' },
+        { model: User, as: 'user', ...publicUserAttributes },
         { model: Service, as: 'services', where: { is_active: true }, required: false },
       ],
     });
@@ -132,7 +139,7 @@ exports.getNearbyProviders = async (req, res) => {
 
     const providers = await Provider.findAll({
       where: { is_online: true, location_lat: { [Op.ne]: null }, location_lng: { [Op.ne]: null } },
-      include: [{ model: User, as: 'user' }],
+      include: [{ model: User, as: 'user', ...publicUserAttributes }],
     });
 
     const nearby = providers.filter((provider) => {
