@@ -18,7 +18,9 @@ const generateRefreshToken = (user) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone } = req.body;
+    const allowedRoles = ['customer', 'provider'];
+    const role = allowedRoles.includes(req.body.role) ? req.body.role : 'customer';
 
     const existing = await User.findOne({ where: { email } });
     if (existing) {

@@ -91,6 +91,9 @@ User.prototype.toJSON = function () {
   const values = Object.assign({}, this.get());
   delete values.password_hash;
   delete values.fcm_token;
+  delete values.reset_token;
+  delete values.reset_token_expires;
+  delete values.email_verify_token;
   return values;
 };
 

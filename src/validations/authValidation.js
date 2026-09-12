@@ -5,6 +5,7 @@ const registerRules = [
   body('email').isEmail().withMessage('A valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('phone').optional().isMobilePhone().withMessage('Invalid phone number'),
+  body('role').optional().isIn(['customer', 'provider']).withMessage('Role must be customer or provider'),
 ];
 
 const loginRules = [

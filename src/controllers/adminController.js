@@ -3,6 +3,8 @@ const sequelize = require('../config/database');
 const { User, Provider, Booking, Service, Payment } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 
+const publicUserAttributes = { exclude: ['password_hash', 'reset_token', 'reset_token_expires', 'email_verify_token'] };
+
 exports.getAllUsers = async (req, res) => {
   try {
     const { role, search, page = 1, limit = 20 } = req.query;
@@ -18,6 +20,7 @@ exports.getAllUsers = async (req, res) => {
 
     const query = paginate({
       where,
+      attributes: publicUserAttributes,
       order: [['created_at', 'DESC']],
     }, { page, limit });
 
@@ -42,7 +45,7 @@ exports.getAllProviders = async (req, res) => {
 
     const query = paginate({
       where,
-      include: [{ model: User, as: 'user' }],
+      include: [{ model: User, as: 'user', attributes: publicUserAttributes }],
       order: [['created_at', 'DESC']],
     }, { page, limit });
 
@@ -87,7 +90,7 @@ exports.getAllBookings = async (req, res) => {
     const query = paginate({
       where,
       include: [
-        { model: User, as: 'customer' },
+        { model: User, as: 'customer', attributes: publicUserAttributes },
         { model: Provider, as: 'provider' },
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
@@ -122,7 +125,7 @@ exports.getAnalytics = async (req, res) => {
 
     const recentBookings = await Booking.findAll({
       include: [
-        { model: User, as: 'customer' },
+        { model: User, as: 'customer', attributes: publicUserAttributes },
         { model: Provider, as: 'provider' },
       ],
       order: [['created_at', 'DESC']],
