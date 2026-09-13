@@ -1,4 +1,4 @@
-const { Booking, Endorsement, Provider, Review, User } = require('../models');
+const { Booking, Endorsement, Provider, Review, Service, User } = require('../models');
 const { createNotification } = require('../services/notificationService');
 const { markBookingVerified, recomputeProviderRating } = require('../services/providerTrustService');
 
@@ -100,6 +100,7 @@ exports.getMyPendingEndorsements = async (req, res) => {
           include: [
             { model: User, as: 'customer', attributes: ['id', 'name'] },
             { model: Provider, as: 'provider', attributes: ['id', 'business_name'] },
+            { model: Service, as: 'service', attributes: ['id', 'name'] },
           ],
         },
       ],
