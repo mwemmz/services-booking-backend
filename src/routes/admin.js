@@ -7,6 +7,7 @@ const {
   getAnalytics,
   getReports,
 } = require('../controllers/adminController');
+const { getDemandMap } = require('../controllers/geoController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 router.get('/users', authenticate, authorize('admin'), getAllUsers);
@@ -15,5 +16,6 @@ router.put('/providers/:id/verify', authenticate, authorize('admin'), verifyProv
 router.get('/bookings', authenticate, authorize('admin'), getAllBookings);
 router.get('/analytics', authenticate, authorize('admin'), getAnalytics);
 router.get('/reports', authenticate, authorize('admin'), getReports);
+router.get('/demand-map', authenticate, authorize('admin'), getDemandMap);
 
 module.exports = router;

@@ -1,7 +1,8 @@
 const { Op } = require('sequelize');
-const { Booking, User, Provider, Service, Payment, Crew } = require('../models');
+const { Booking, User, Provider, Service, Payment, Crew, Review, Endorsement } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { checkAvailability, generateSlots } = require('../services/bookingAvailability');
+const { markBookingVerified } = require('../services/providerTrustService');
 
 const VALID_TRANSITIONS = {
   pending: ['accepted', 'rejected', 'cancelled'],
@@ -181,6 +182,8 @@ exports.getBookingById = async (req, res) => {
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
         { model: Crew, as: 'crew', include: [{ model: Provider, as: 'members' }] },
+        { model: Review, as: 'review' },
+        { model: Endorsement, as: 'endorsement' },
       ],
     });
 
@@ -211,12 +214,14 @@ exports.updateBookingStatus = async (req, res) => {
     }
 
     const updates = { status };
-    // Mark as confirmed work history once the job is completed.
-    if (status === 'completed') {
-      updates.is_confirmed = true;
-    }
-
     await booking.update(updates);
+
+    // A booking is only verified work history once the customer reviews it AND
+    // a different worker confirms it. Re-evaluate so an early confirmation
+    // (before the job finished) still upgrades a stale is_confirmed=false.
+    if (['completed', 'paid'].includes(status)) {
+      await markBookingVerified(booking.id);
+    }
 
     return res.json({ message: 'Booking status updated.', booking });
   } catch (error) {
@@ -301,6 +306,7 @@ exports.getWorkHistory = async (req, res) => {
           { model: User, as: 'customer' },
           { model: Service, as: 'service' },
           { model: Payment, as: 'payment' },
+          { model: Endorsement, as: 'endorsement' },
         ],
         order: [['updatedAt', 'DESC']],
       }, { page, limit })),

@@ -11,6 +11,7 @@ const Certification = require('./Certification');
 const Crew = require('./Crew');
 const CrewMember = require('./CrewMember');
 const Dispute = require('./Dispute');
+const Endorsement = require('./Endorsement');
 
 User.hasOne(Provider, { foreignKey: 'user_id', as: 'providerProfile' });
 Provider.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -48,6 +49,14 @@ Booking.belongsTo(Service, { foreignKey: 'service_id', as: 'service' });
 Booking.hasOne(Payment, { foreignKey: 'booking_id', as: 'payment' });
 Payment.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 
+// Peer verification: a different worker vouches for a completed job.
+Booking.hasOne(Endorsement, { foreignKey: 'booking_id', as: 'endorsement' });
+Endorsement.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
+Provider.hasMany(Endorsement, { foreignKey: 'requester_id', as: 'endorsementsRequested' });
+Provider.hasMany(Endorsement, { foreignKey: 'peer_id', as: 'endorsementsToVerify' });
+Endorsement.belongsTo(Provider, { foreignKey: 'requester_id', as: 'requester' });
+Endorsement.belongsTo(Provider, { foreignKey: 'peer_id', as: 'peer' });
+
 Booking.hasOne(Review, { foreignKey: 'booking_id', as: 'review' });
 Review.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 Review.belongsTo(User, { foreignKey: 'customer_id', as: 'customer' });
@@ -73,4 +82,5 @@ module.exports = {
   Crew,
   CrewMember,
   Dispute,
+  Endorsement,
 };

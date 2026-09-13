@@ -1,7 +1,8 @@
-const { Review, Booking, Provider, User } = require('../models');
+const { Review, Booking, Provider, User, Endorsement } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
+const { markBookingVerified, recomputeProviderRating } = require('../services/providerTrustService');
 
 exports.createReview = async (req, res) => {
   try {
@@ -33,21 +34,10 @@ exports.createReview = async (req, res) => {
       comment,
     });
 
-    const provider = await Provider.findByPk(booking.provider_id);
-    if (provider) {
-      const stats = await Review.findOne({
-        where: { provider_id: booking.provider_id },
-        attributes: [
-          [sequelize.fn('AVG', sequelize.col('rating')), 'avgRating'],
-          [sequelize.fn('COUNT', sequelize.col('id')), 'totalReviews'],
-        ],
-        raw: true,
-      });
-      await provider.update({
-        rating: parseFloat(stats.avgRating) || 0,
-        total_reviews: parseInt(stats.totalReviews) || 0,
-      });
-    }
+    // Rating only counts once a different worker confirms the job (spec rule).
+    await recomputeProviderRating(booking.provider_id);
+    // If the peer already confirmed earlier, this completed review makes it verified.
+    await markBookingVerified(booking_id);
 
     return res.status(201).json({ message: 'Review created.', review });
   } catch (error) {
@@ -67,17 +57,25 @@ exports.getProviderReviews = async (req, res) => {
 
     const { count, rows: reviews } = await Review.findAndCountAll(query);
 
+    // Align the displayed average with the confirmed-only provider rating.
+    const confirmed = await Endorsement.findAll({ where: { status: 'confirmed' }, attributes: ['booking_id'] });
+    const confirmedIds = confirmed.map((e) => e.booking_id);
+    const confirmedWhere = { provider_id: req.params.providerId };
+    if (confirmedIds.length > 0) confirmedWhere.booking_id = { [Op.in]: confirmedIds };
+    else confirmedWhere.booking_id = null;
+
     const stats = await Review.findOne({
-      where: { provider_id: req.params.providerId },
+      where: confirmedWhere,
       attributes: [
         [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating'],
       ],
       raw: true,
     });
+    const providerForRating = await Provider.findByPk(req.params.providerId, { attributes: ['rating'] });
 
     return res.json({
       reviews,
-      averageRating: parseFloat(stats.averageRating) || 0,
+      averageRating: stats && stats.averageRating != null ? parseFloat(stats.averageRating) : (providerForRating ? parseFloat(providerForRating.rating) || 0 : 0),
       pagination: buildPaginationResponse(count, page, limit),
     });
   } catch (error) {
@@ -121,21 +119,9 @@ exports.deleteReview = async (req, res) => {
 
     await review.destroy();
 
-    const provider = await Provider.findByPk(review.provider_id);
-    if (provider) {
-      const stats = await Review.findOne({
-        where: { provider_id: review.provider_id },
-        attributes: [
-          [sequelize.fn('AVG', sequelize.col('rating')), 'avgRating'],
-          [sequelize.fn('COUNT', sequelize.col('id')), 'totalReviews'],
-        ],
-        raw: true,
-      });
-      await provider.update({
-        rating: parseFloat(stats.avgRating) || 0,
-        total_reviews: parseInt(stats.totalReviews) || 0,
-      });
-    }
+    await recomputeProviderRating(review.provider_id);
+    // Removing the customer's review un-verifies the booking.
+    await markBookingVerified(review.booking_id);
 
     return res.json({ message: 'Review deleted.' });
   } catch (error) {
