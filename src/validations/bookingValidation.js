@@ -10,8 +10,8 @@ const createBookingRules = [
 
 const updateStatusRules = [
   body('status')
-    .isIn(['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'])
-    .withMessage('Status must be one of: pending, confirmed, in_progress, completed, cancelled'),
+    .isIn(['pending', 'assigned', 'accepted', 'rejected', 'in-progress', 'completed', 'paid', 'cancelled'])
+    .withMessage('Status must be one of: pending, assigned, accepted, rejected, in-progress, completed, paid, cancelled'),
 ];
 
 module.exports = {
