@@ -80,4 +80,14 @@ const getIO = () => {
   return io;
 };
 
-module.exports = { initSocket, getIO };
+/** Push an event to a single user's room (used by HTTP controllers for real-time delivery). */
+const emitToUser = (userId, event, payload) => {
+  if (io) io.to(`user:${userId}`).emit(event, payload);
+};
+
+/** Push an event to everyone currently viewing a booking. */
+const emitToBooking = (bookingId, event, payload) => {
+  if (io) io.to(`booking:${bookingId}`).emit(event, payload);
+};
+
+module.exports = { initSocket, getIO, emitToUser, emitToBooking };

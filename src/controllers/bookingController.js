@@ -3,6 +3,19 @@ const { Booking, User, Provider, Service, Payment, Crew, Review, Endorsement } =
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { checkAvailability, generateSlots } = require('../services/bookingAvailability');
 const { markBookingVerified } = require('../services/providerTrustService');
+const { createNotification } = require('../services/notificationService');
+const { emitToUser, emitToBooking } = require('../config/socket');
+
+/** Push a booking status change to everyone involved (customer, provider, viewers). */
+const broadcastBookingStatus = async (bookingId, status, customerId, providerId) => {
+  const payload = { bookingId, status, timestamp: new Date().toISOString() };
+  emitToBooking(bookingId, 'booking-status-update', payload);
+  emitToUser(customerId, 'booking-status-update', payload);
+  if (providerId) {
+    const profile = await Provider.findByPk(providerId, { attributes: ['user_id'] });
+    if (profile) emitToUser(profile.user_id, 'booking-status-update', payload);
+  }
+};
 
 const VALID_TRANSITIONS = {
   pending: ['accepted', 'rejected', 'cancelled'],
@@ -74,6 +87,19 @@ exports.createBooking = async (req, res) => {
         { model: Crew, as: 'crew' },
       ],
     });
+
+    // Real-time: deliver the new request to the provider + record an in-app notification.
+    emitToUser(provider.user_id, 'new-booking', {
+      bookingId: booking.id,
+      timestamp: new Date().toISOString(),
+    });
+    await createNotification(
+      provider.user_id,
+      'new_request',
+      'New booking request',
+      `${service.name} was requested${fullBooking?.customer?.name ? ` by ${fullBooking.customer.name}` : ''}.`,
+      { bookingId: booking.id },
+    );
 
     return res.status(201).json({ message: 'Booking created.', booking: fullBooking });
   } catch (error) {
@@ -223,6 +249,8 @@ exports.updateBookingStatus = async (req, res) => {
       await markBookingVerified(booking.id);
     }
 
+    await broadcastBookingStatus(booking.id, status, booking.customer_id, booking.provider_id);
+
     return res.json({ message: 'Booking status updated.', booking });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to update booking status.', error: error.message });
@@ -252,6 +280,8 @@ exports.cancelBooking = async (req, res) => {
     }
 
     await booking.update({ status: 'cancelled' });
+
+    await broadcastBookingStatus(booking.id, 'cancelled', booking.customer_id, booking.provider_id);
 
     return res.json({ message: 'Booking cancelled.', booking });
   } catch (error) {
