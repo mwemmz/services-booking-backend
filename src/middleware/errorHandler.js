@@ -15,6 +15,12 @@ const errorHandler = (err, req, res, next) => {
     return res.status(400).json({ message: 'Referenced resource not found.' });
   }
 
+  // Postgres error 22P02 = invalid UUID / text representation for a typed column.
+  // Treat it as a bad request (e.g. /services/repair-plumbing) instead of a 500.
+  if (err.name === 'SequelizeDatabaseError' && err.parent && err.parent.code === '22P02') {
+    return res.status(400).json({ message: 'Invalid resource id format.' });
+  }
+
   if (err.name === 'JsonWebTokenError') {
     return res.status(401).json({ message: 'Invalid token.' });
   }
