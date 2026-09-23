@@ -200,7 +200,7 @@ exports.getAllBookings = async (req, res) => {
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
       ],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: bookings } = await Booking.findAndCountAll(query);
@@ -331,7 +331,7 @@ exports.getCustomerBookings = async (req, res) => {
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
       ],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: bookings } = await Booking.findAndCountAll(query);
@@ -406,7 +406,7 @@ exports.getProviderBookings = async (req, res) => {
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
       ],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: bookings } = await Booking.findAndCountAll(query);

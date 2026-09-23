@@ -52,7 +52,7 @@ exports.getProviderReviews = async (req, res) => {
     const query = paginate({
       where: { provider_id: req.params.providerId },
       include: [{ model: User, as: 'customer' }],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: reviews } = await Review.findAndCountAll(query);
