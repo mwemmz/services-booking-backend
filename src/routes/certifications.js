@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   createCertification,
   getProviderCertifications,
@@ -8,6 +9,9 @@ const {
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { createCertificationRules } = require('../validations/certificationValidation');
+
+router.param('id', uuidParam('id'));
+router.param('providerId', uuidParam('providerId'));
 
 router.post('/', authenticate, authorize('provider'), [...createCertificationRules, validate], createCertification);
 router.get('/provider/:providerId', getProviderCertifications);

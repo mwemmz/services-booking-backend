@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   getAllUsers,
   getAllProviders,
@@ -9,6 +10,8 @@ const {
 } = require('../controllers/adminController');
 const { getDemandMap } = require('../controllers/geoController');
 const { authenticate, authorize } = require('../middleware/auth');
+
+router.param('id', uuidParam('id'));
 
 router.get('/users', authenticate, authorize('admin'), getAllUsers);
 router.get('/providers', authenticate, authorize('admin'), getAllProviders);

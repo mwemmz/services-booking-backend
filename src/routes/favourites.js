@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   listFavourites,
   checkFavourite,
@@ -6,6 +7,8 @@ const {
   removeFavourite,
 } = require('../controllers/favouriteController');
 const { authenticate } = require('../middleware/auth');
+
+router.param('providerId', uuidParam('providerId'));
 
 router.get('/', authenticate, listFavourites);
 router.get('/:providerId/status', authenticate, checkFavourite);

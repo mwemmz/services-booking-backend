@@ -1,11 +1,14 @@
 const { body } = require('express-validator');
 
+const idRule = (field) =>
+  body(field).isUUID().withMessage(`${field} must be a valid UUID`);
+
 const createBookingRules = [
-  body('provider_id').notEmpty().withMessage('Provider ID is required'),
-  body('service_id').notEmpty().withMessage('Service ID is required'),
+  idRule('provider_id'),
+  idRule('service_id'),
   body('booking_time').isISO8601().withMessage('A valid ISO 8601 date is required'),
   body('address').optional().notEmpty().withMessage('Address cannot be empty'),
-  body('crew_id').optional().isUUID().withMessage('crew_id must be a valid UUID'),
+  idRule('crew_id').optional(),
 ];
 
 const updateStatusRules = [

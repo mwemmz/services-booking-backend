@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   getOrCreate,
   listConversations,
@@ -6,6 +7,9 @@ const {
   sendMessage,
 } = require('../controllers/messageController');
 const { authenticate } = require('../middleware/auth');
+
+router.param('id', uuidParam('id'));
+router.param('bookingId', uuidParam('bookingId'));
 
 // Get-or-create the conversation for a booking (must be mounted before generic routes).
 router.get('/conversations/booking/:bookingId', authenticate, getOrCreate);

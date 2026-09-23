@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   createBooking,
   getAllBookings,
@@ -18,6 +19,10 @@ const {
   createBookingRules,
   updateStatusRules,
 } = require('../validations/bookingValidation');
+
+router.param('id', uuidParam('id'));
+router.param('customerId', uuidParam('customerId'));
+router.param('providerId', uuidParam('providerId'));
 
 router.post('/', authenticate, [...createBookingRules, validate], createBooking);
 router.get('/available', checkAvailabilityEndpoint);
