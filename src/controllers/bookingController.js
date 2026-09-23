@@ -3,7 +3,8 @@ const { Booking, User, Provider, Service, Payment, Crew, Review, Endorsement } =
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { checkAvailability, generateSlots } = require('../services/bookingAvailability');
 const { markBookingVerified } = require('../services/providerTrustService');
-const { createNotification } = require('../services/notificationService');
+const { createNotification, notifyBookingUpdate } = require('../services/notificationService');
+const { sendBookingConfirmation } = require('../services/emailService');
 const { emitToUser, emitToBooking } = require('../config/socket');
 
 /** Push a booking status change to everyone involved (customer, provider, viewers). */
@@ -19,7 +20,9 @@ const broadcastBookingStatus = async (bookingId, status, customerId, providerId)
 
 const VALID_TRANSITIONS = {
   pending: ['accepted', 'rejected', 'cancelled'],
-  accepted: ['in-progress', 'cancelled'],
+  accepted: ['on-the-way', 'cancelled'],
+  'on-the-way': ['arrived', 'in-progress', 'cancelled'],
+  arrived: ['in-progress', 'cancelled'],
   'in-progress': ['completed'],
   completed: ['paid'],
 };
@@ -100,6 +103,18 @@ exports.createBooking = async (req, res) => {
       `${service.name} was requested${fullBooking?.customer?.name ? ` by ${fullBooking.customer.name}` : ''}.`,
       { bookingId: booking.id },
     );
+
+    // Best-effort confirmation email to the customer (emails are optional to configure).
+    const customerUser = await User.findByPk(booking.customer_id, { attributes: ['email'] });
+    if (customerUser?.email) {
+      await sendBookingConfirmation(customerUser.email, {
+        serviceName: service.name,
+        providerName: fullBooking?.provider?.business_name || 'Your provider',
+        bookingTime: booking.booking_time,
+        address: booking.address,
+        totalAmount: booking.total_amount,
+      });
+    }
 
     return res.status(201).json({ message: 'Booking created.', booking: fullBooking });
   } catch (error) {
@@ -232,6 +247,11 @@ exports.updateBookingStatus = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found.' });
     }
 
+    // Applying the same status is a harmless no-op (helps idempotent retries).
+    if (status === booking.status) {
+      return res.json({ message: `Booking is already '${status}'.`, booking });
+    }
+
     const allowed = VALID_TRANSITIONS[booking.status];
     if (!allowed || !allowed.includes(status)) {
       return res.status(400).json({
@@ -250,6 +270,10 @@ exports.updateBookingStatus = async (req, res) => {
     }
 
     await broadcastBookingStatus(booking.id, status, booking.customer_id, booking.provider_id);
+    // Persist + push a notification to both parties for every status change.
+    await notifyBookingUpdate(booking.customer_id, status, booking.id);
+    const providerProfile = await Provider.findByPk(booking.provider_id, { attributes: ['user_id'] });
+    if (providerProfile) await notifyBookingUpdate(providerProfile.user_id, status, booking.id);
 
     return res.json({ message: 'Booking status updated.', booking });
   } catch (error) {
@@ -275,13 +299,17 @@ exports.cancelBooking = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to cancel this booking.' });
     }
 
-    if (!['pending', 'accepted'].includes(booking.status)) {
-      return res.status(400).json({ message: 'Can only cancel bookings that are pending or accepted.' });
+    if (!['pending', 'accepted', 'on-the-way', 'arrived'].includes(booking.status)) {
+      return res.status(400).json({ message: 'Can only cancel bookings that are pending, accepted, or on the way.' });
     }
 
     await booking.update({ status: 'cancelled' });
 
     await broadcastBookingStatus(booking.id, 'cancelled', booking.customer_id, booking.provider_id);
+    // Let both sides know the job is off.
+    await notifyBookingUpdate(booking.customer_id, 'cancelled', booking.id);
+    const providerProfile = await Provider.findByPk(booking.provider_id, { attributes: ['user_id'] });
+    if (providerProfile) await notifyBookingUpdate(providerProfile.user_id, 'cancelled', booking.id);
 
     return res.json({ message: 'Booking cancelled.', booking });
   } catch (error) {
@@ -389,5 +417,107 @@ exports.getProviderBookings = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch bookings.', error: error.message });
+  }
+};
+
+/** Re-book a past job: clone the provider/service/location into a fresh pending booking. */
+exports.rebookBooking = async (req, res) => {
+  try {
+    const previous = await Booking.findByPk(req.params.id);
+    if (!previous) {
+      return res.status(404).json({ message: 'Booking not found.' });
+    }
+
+    if (previous.customer_id !== req.user.id) {
+      return res.status(403).json({ message: 'You can only re-book your own bookings.' });
+    }
+
+    if (!['completed', 'paid', 'cancelled', 'expired'].includes(previous.status)) {
+      return res.status(400).json({ message: 'This booking is still active and cannot be re-booked.' });
+    }
+
+    const service = await Service.findByPk(previous.service_id);
+    if (!service || !service.is_active) {
+      return res.status(404).json({ message: 'Service not found or inactive.' });
+    }
+
+    const provider = await Provider.findByPk(previous.provider_id);
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider not found.' });
+    }
+
+    const booking_time = req.body.booking_time || new Date(Date.now() + 15 * 60 * 1000);
+    if (req.body.crew_id) {
+      const crew = await Crew.findByPk(req.body.crew_id);
+      if (!crew) return res.status(404).json({ message: 'Crew not found.' });
+      if (crew.leader_id !== previous.provider_id) {
+        return res.status(400).json({ message: 'Crew does not belong to the chosen provider.' });
+      }
+    }
+
+    const availability = await checkAvailability({
+      providerId: previous.provider_id,
+      serviceId: previous.service_id,
+      bookingTime: booking_time,
+      serviceDurationMin: service.duration,
+    });
+    if (!availability.available) {
+      return res.status(409).json({
+        message: 'This time slot is already booked for the provider.',
+        conflict_id: availability.conflict,
+      });
+    }
+
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const booking = await Booking.create({
+      customer_id: req.user.id,
+      provider_id: previous.provider_id,
+      service_id: previous.service_id,
+      booking_time,
+      total_amount: service.price,
+      location_lat: previous.location_lat,
+      location_lng: previous.location_lng,
+      address: previous.address,
+      notes: previous.notes,
+      crew_id: req.body.crew_id || previous.crew_id || null,
+      expires_at: expiresAt,
+      status: 'pending',
+    });
+
+    const fullBooking = await Booking.findByPk(booking.id, {
+      include: [
+        { model: User, as: 'customer' },
+        { model: Provider, as: 'provider' },
+        { model: Service, as: 'service' },
+        { model: Crew, as: 'crew' },
+      ],
+    });
+
+    emitToUser(provider.user_id, 'new-booking', {
+      bookingId: booking.id,
+      timestamp: new Date().toISOString(),
+    });
+    await createNotification(
+      provider.user_id,
+      'new_request',
+      'New booking request',
+      `${service.name} was re-booked${fullBooking?.customer?.name ? ` by ${fullBooking.customer.name}` : ''}.`,
+      { bookingId: booking.id },
+    );
+
+    const customerUser = await User.findByPk(booking.customer_id, { attributes: ['email'] });
+    if (customerUser?.email) {
+      await sendBookingConfirmation(customerUser.email, {
+        serviceName: service.name,
+        providerName: fullBooking?.provider?.business_name || 'Your provider',
+        bookingTime: booking.booking_time,
+        address: booking.address,
+        totalAmount: booking.total_amount,
+      });
+    }
+
+    return res.status(201).json({ message: 'Booking re-created.', booking: fullBooking });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to re-book.', error: error.message });
   }
 };

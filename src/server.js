@@ -30,6 +30,8 @@ const disputeRoutes = require('./routes/disputes');
 const nationalIdRoutes = require('./routes/nationalIds');
 const insightRoutes = require('./routes/insights');
 const endorsementRoutes = require('./routes/endorsements');
+const messageRoutes = require('./routes/messages');
+const favouriteRoutes = require('./routes/favourites');
 
 const app = express();
 const server = http.createServer(app);
@@ -77,6 +79,8 @@ app.use('/api/disputes', disputeRoutes);
 app.use('/api/national-id', nationalIdRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/endorsements', endorsementRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/favourites', favouriteRoutes);
 
 // Serve uploaded files (base64 uploads) statically.
 app.use('/uploads', express.static(UPLOAD_DIR));

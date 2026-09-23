@@ -16,6 +16,10 @@ const generateRefreshToken = (user) => {
   });
 };
 
+/** 6-digit numeric code for email verification (mobile-friendly OTP). */
+const generateVerificationCode = () =>
+  String(Math.floor(100000 + Math.random() * 900000));
+
 exports.register = async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
@@ -178,7 +182,13 @@ exports.forgotPassword = async (req, res) => {
 
     await sendPasswordReset(user.email, resetToken);
 
-    return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    // Development convenience: let the mobile demo prefill the reset code.
+    const devMode = config.nodeEnv !== 'production';
+
+    return res.json({
+      message: 'If that email exists, a reset link has been sent.',
+      ...(devMode && resetToken ? { resetToken } : {}),
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to request password reset.', error: error.message });
   }
@@ -228,29 +238,34 @@ exports.resendVerification = async (req, res) => {
       return res.json({ message: 'Email is already verified.' });
     }
 
-    const verifyToken = uuidv4();
-    await user.update({ email_verify_token: verifyToken });
-    await sendEmailVerification(user.email, verifyToken);
+    const code = generateVerificationCode();
+    await user.update({ email_verify_token: code });
+    await sendEmailVerification(user.email, code);
 
-    return res.json({ message: 'Verification email sent.' });
+    const devMode = config.nodeEnv !== 'production';
+    return res.json({
+      message: 'Verification email sent.',
+      ...(devMode ? { code } : {}),
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to send verification email.', error: error.message });
   }
 };
 
 /**
- * Confirm a user's email using the emailed token.
+ * Confirm a user's email using the emailed 6-digit code (or legacy token link).
  */
 exports.verifyEmail = async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ message: 'token is required.' });
+    const { token, code } = req.body;
+    const value = code || token;
+    if (!value) {
+      return res.status(400).json({ message: 'Verification code is required.' });
     }
 
-    const user = await User.findOne({ where: { email_verify_token: token } });
+    const user = await User.findOne({ where: { email_verify_token: String(value) } });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid verification token.' });
+      return res.status(400).json({ message: 'Invalid email verification code.' });
     }
 
     await user.update({ email_verified: true, email_verify_token: null });

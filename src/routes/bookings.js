@@ -10,6 +10,7 @@ const {
   getWorkHistory,
   checkAvailabilityEndpoint,
   getProviderSlots,
+  rebookBooking,
 } = require('../controllers/bookingController');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
@@ -28,5 +29,6 @@ router.get('/provider/:providerId/work-history', authenticate, getWorkHistory);
 router.get('/:id', authenticate, getBookingById);
 router.put('/:id/status', authenticate, [...updateStatusRules, validate], updateBookingStatus);
 router.put('/:id/cancel', authenticate, cancelBooking);
+router.post('/:id/rebook', authenticate, rebookBooking);
 
 module.exports = router;

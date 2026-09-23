@@ -12,6 +12,9 @@ const Crew = require('./Crew');
 const CrewMember = require('./CrewMember');
 const Dispute = require('./Dispute');
 const Endorsement = require('./Endorsement');
+const Conversation = require('./Conversation');
+const Message = require('./Message');
+const Favourite = require('./Favourite');
 
 User.hasOne(Provider, { foreignKey: 'user_id', as: 'providerProfile' });
 Provider.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -68,6 +71,21 @@ Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Provider.hasMany(Location, { foreignKey: 'provider_id', as: 'locations' });
 Location.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 
+// Message associations: one conversation per booking between customer + provider.
+Booking.hasOne(Conversation, { foreignKey: 'booking_id', as: 'conversation' });
+Conversation.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
+Conversation.belongsTo(User, { foreignKey: 'customer_id', as: 'customer' });
+Conversation.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
+Conversation.hasMany(Message, { foreignKey: 'conversation_id', as: 'messages' });
+Message.belongsTo(Conversation, { foreignKey: 'conversation_id', as: 'conversation' });
+Message.belongsTo(User, { foreignKey: 'sender_id', as: 'sender' });
+
+// Favourites: a customer saves providers for quick re-booking.
+User.hasMany(Favourite, { foreignKey: 'user_id', as: 'favourites' });
+Favourite.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+Provider.hasMany(Favourite, { foreignKey: 'provider_id', as: 'favouritedBy' });
+Favourite.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
+
 module.exports = {
   User,
   Provider,
@@ -83,4 +101,7 @@ module.exports = {
   CrewMember,
   Dispute,
   Endorsement,
+  Conversation,
+  Message,
+  Favourite,
 };
