@@ -7,6 +7,7 @@ const {
   updateProvider,
   toggleOnlineStatus,
   getNearbyProviders,
+  getMyProviderProfile,
 } = require('../controllers/providerController');
 const { getOpportunities } = require('../controllers/geoController');
 const { authenticate, authorize } = require('../middleware/auth');
@@ -22,6 +23,7 @@ router.post('/', authenticate, [...registerProviderRules, validate], registerAsP
 router.get('/', getAllProviders);
 router.get('/opportunities', authenticate, authorize('provider'), getOpportunities);
 router.get('/nearby', authenticate, getNearbyProviders);
+router.get('/me', authenticate, getMyProviderProfile);
 router.get('/:id', getProviderById);
 router.put('/:id', authenticate, [...updateProviderRules, validate], updateProvider);
 router.put('/:id/status', authenticate, toggleOnlineStatus);

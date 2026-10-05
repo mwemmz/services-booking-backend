@@ -1,65 +1,92 @@
-import { cookies } from "next/headers";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/data/prisma";
-import { TOKEN_COOKIE, signToken, verifyToken, type Session } from "@/lib/token";
+/**
+ * Auth facade for the screens and route handlers.
+ *
+ * Everything here delegates to the Express API: passwords are never hashed or
+ * stored in this app, and the signed-in user is whatever the API reports.
+ */
+import { apiFetch } from "@/lib/api";
 import { HttpError } from "@/lib/http";
+import {
+  clearSession,
+  getMyProvider,
+  getSession,
+  requireUser,
+  setSession,
+  type Role,
+  type SessionUser,
+} from "@/lib/session";
 
-export async function setSession(userId: string, role: Session["role"]) {
-  const token = await signToken(userId, role);
-  const jar = await cookies();
-  jar.set(TOKEN_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 14,
-  });
+export { clearSession, getSession, setSession, requireUser };
+export type { Role, SessionUser };
+
+export type AuthResult = { user: SessionUser };
+
+export async function login(email: string, password: string, expected?: Role) {
+  const res = await apiFetch<{
+    accessToken: string;
+    refreshToken: string;
+    user: { id: string; role: string };
+  }>("/auth/login", { method: "POST", body: { email, password } });
+
+  const role = String(res.user.role).toUpperCase() === "PROVIDER" ? "PROVIDER" : "CUSTOMER";
+  if (expected && role !== expected) {
+    throw new HttpError(
+      role === "PROVIDER"
+        ? "That account belongs to a provider. Sign in from the provider side."
+        : "That account belongs to a customer. Sign in from the customer side.",
+      403,
+    );
+  }
+
+  await setSession({ accessToken: res.accessToken, refreshToken: res.refreshToken }, res.user);
+  return { role, userId: res.user.id };
 }
 
-export async function clearSession() {
-  const jar = await cookies();
-  jar.set(TOKEN_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+export async function registerCustomer(input: { name: string; email: string; phone: string; password: string }) {
+  const res = await apiFetch<{ accessToken: string; refreshToken: string; user: { id: string; role: string } }>(
+    "/auth/register",
+    { method: "POST", body: { ...input, role: "customer" } },
+  );
+  await setSession({ accessToken: res.accessToken, refreshToken: res.refreshToken }, res.user);
+  return { role: "CUSTOMER" as const, userId: res.user.id };
 }
 
-export async function getSession() {
-  const jar = await cookies();
-  return verifyToken(jar.get(TOKEN_COOKIE)?.value);
+export async function registerProvider(
+  input: { name: string; email: string; phone: string; password: string; business_name: string; category: string },
+) {
+  const res = await apiFetch<{ accessToken: string; refreshToken: string; user: { id: string; role: string } }>(
+    "/auth/register",
+    { method: "POST", body: { ...input, role: "provider" } },
+  );
+  await setSession({ accessToken: res.accessToken, refreshToken: res.refreshToken }, res.user);
+  return { role: "PROVIDER" as const, userId: res.user.id };
 }
 
-export async function requireUser(role?: Session["role"]) {
-  const session = await getSession();
-  if (!session) throw new HttpError("Please log in to continue.", 401);
-  if (role && session.role !== role) throw new HttpError("You do not have access to this.", 403);
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    include: { customerProfile: true, providerProfile: true },
-  });
-  if (!user) throw new HttpError("Please log in to continue.", 401);
-  const deactivated = await prisma.$queryRaw<Array<{ deactivatedAt: string | null }>>`SELECT deactivatedAt FROM User WHERE id = ${user.id}`;
-  if (deactivated[0]?.deactivatedAt) throw new HttpError("This account has been deactivated.", 403);
-  return user;
-}
-
-export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 10);
-}
-
-export async function checkPassword(password: string, hash: string) {
-  return bcrypt.compare(password, hash);
-}
-
+/** Notifications and messages that are waiting to be read, for the header badge. */
 export async function unreadCounts(userId: string, role: string, profileId: string | undefined) {
-  const [unreadNotifications, unreadMessages] = await Promise.all([
-    prisma.notification.count({ where: { userId, readAt: null } }),
+  void userId;
+  const session = await getSession();
+  if (!session) return { unreadNotifications: 0, unreadMessages: 0 };
+
+  const [notifications, conversations] = await Promise.all([
+    apiFetch<{ notifications?: Array<{ read_at?: string | null; is_read?: boolean }> }>("/notifications", {
+      token: session.token,
+    }).catch(() => ({ notifications: [] as Array<{ read_at?: string | null; is_read?: boolean }> })),
     profileId
-      ? prisma.message.count({
-          where: {
-            readAt: null,
-            senderId: { not: userId },
-            booking: role === "CUSTOMER" ? { customerId: profileId } : { providerId: profileId },
-          },
-        })
-      : Promise.resolve(0),
+      ? apiFetch<{ conversations?: Array<{ unread_count?: number }> }>("/messages/conversations", {
+          token: session.token,
+        }).catch(() => ({ conversations: [] as Array<{ unread_count?: number }> }))
+      : Promise.resolve({ conversations: [] as Array<{ unread_count?: number }> }),
   ]);
+
+  const unreadNotifications = (notifications.notifications ?? []).filter((n) => !n.read_at && !n.is_read).length;
+  const unreadMessages = (conversations.conversations ?? []).reduce(
+    (total, c) => total + (c.unread_count ?? c.unreadCount ?? 0),
+    0,
+  );
+
+  void role;
   return { unreadNotifications, unreadMessages };
 }
+
+export { getMyProvider };

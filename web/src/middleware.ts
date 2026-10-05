@@ -1,12 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { TOKEN_COOKIE, verifyToken } from "@/lib/token";
+import { ROLE_COOKIE, TOKEN_COOKIE } from "@/lib/cookieNames";
 
 const customerPublic = new Set(["/customer/start", "/customer/login", "/customer/register", "/customer/forgot"]);
 const providerPublic = new Set(["/provider/start", "/provider/login", "/provider/register", "/provider/forgot"]);
 
+/**
+ * Page gating only. The cookie cannot be verified here (Edge runtime, and the
+ * token belongs to the API), so this checks presence and trusts the role cookie
+ * to pick a landing page. Anything that matters verifies against the API in
+ * requireUser().
+ */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const session = await verifyToken(request.cookies.get(TOKEN_COOKIE)?.value);
+  const hasToken = Boolean(request.cookies.get(TOKEN_COOKIE)?.value);
+  const role = request.cookies.get(ROLE_COOKIE)?.value;
+  const signedIn = hasToken && (role === "CUSTOMER" || role === "PROVIDER");
+  const session = signedIn ? { role } : null;
 
   if (pathname === "/" || pathname === "/choose-role") {
     if (!session) return NextResponse.next();
@@ -39,5 +48,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|images|uploads).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|images|uploads|socket.io).*)"],
 };

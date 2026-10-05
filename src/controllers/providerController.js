@@ -158,3 +158,28 @@ exports.getNearbyProviders = async (req, res) => {
     return res.status(500).json({ message: 'Failed to fetch nearby providers.', error: error.message });
   }
 };
+
+/**
+ * The signed-in provider's own profile. Mounted before /:id so it is not
+ * swallowed by the uuid id matcher, and used by clients that only hold a user
+ * token and have no way to guess their provider id.
+ */
+exports.getMyProviderProfile = async (req, res) => {
+  try {
+    const provider = await Provider.findOne({
+      where: { user_id: req.user.id },
+      include: [
+        { model: User, as: 'user', ...publicUserAttributes },
+        { model: Service, as: 'services', where: { is_active: true }, required: false },
+      ],
+    });
+
+    if (!provider) {
+      return res.status(404).json({ message: 'No provider profile for this account.' });
+    }
+
+    return res.json({ provider });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch profile.', error: error.message });
+  }
+};
