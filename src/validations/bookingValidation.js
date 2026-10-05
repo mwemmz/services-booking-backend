@@ -11,12 +11,6 @@ const createBookingRules = [
   idRule('crew_id').optional(),
 ];
 
-const BOOKING_STATUSES = [
-  'pending', 'assigned', 'accepted', 'rejected',
-  'on_the_way', 'arrived', 'in-progress',
-  'completed', 'paid', 'cancelled', 'expired',
-];
-
 const updateStatusRules = [
   body('status')
     .isIn(['pending', 'assigned', 'accepted', 'rejected', 'on-the-way', 'arrived', 'in-progress', 'completed', 'paid', 'cancelled'])

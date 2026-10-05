@@ -4,10 +4,10 @@ const { Op } = require('sequelize');
 /**
  * Time-slot overlap check.
  * A booking occupies [start, start + duration). Two bookings conflict if their
- * intervals overlap. Statuses that 'hold' a slot: pending, accepted, on_the_way,
+ * intervals overlap. Statuses that 'hold' a slot: pending, accepted, on-the-way,
  * arrived, in-progress. This prevents double-booking of the same provider in overlapping times.
  */
-const ACTIVE_STATUSES = ['pending', 'accepted', 'on_the_way', 'arrived', 'in-progress'];
+const ACTIVE_STATUSES = ['pending', 'accepted', 'on-the-way', 'arrived', 'in-progress'];
 
 const normalizeDate = (value) => {
   const d = new Date(value);

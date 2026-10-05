@@ -13,7 +13,7 @@ const sequelize = require('../config/database');
 const ENUM_MIGRATIONS = [
   {
     type: 'enum_bookings_status',
-    values: ['on_the_way', 'arrived'],
+    values: ['on-the-way', 'arrived'],
   },
 ];
 

@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const { Booking, Provider } = require('../models');
 
-const ACTIVE_JOB_STATUSES = ['pending', 'accepted', 'on_the_way', 'arrived', 'in-progress'];
+const ACTIVE_JOB_STATUSES = ['pending', 'accepted', 'on-the-way', 'arrived', 'in-progress'];
 
 /** ~1 km grid cell: 0.01 degrees of latitude/longitude. */
 const GRID_PRECISION = 2;
