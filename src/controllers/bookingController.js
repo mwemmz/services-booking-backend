@@ -276,18 +276,20 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
-    const updates = { status };
-
-    // A provider may price the job differently from the listed price when they
-    // accept. Store the quote alongside the amount the customer agreed to pay.
-    if (status === 'accepted' && quotedPrice !== undefined && quotedPrice !== null) {
-      const amount = Number(quotedPrice);
-      if (!Number.isFinite(amount) || amount < 1) {
+    // Sending a price is not the same as accepting the job. When the provider
+    // quotes, the booking stays pending until the customer agrees, so the amount
+    // is a decision they actually make rather than one already imposed on them.
+    const isQuote = status === 'accepted' && quotedPrice !== undefined && quotedPrice !== null;
+    let quoteAmount = null;
+    if (isQuote) {
+      quoteAmount = Number(quotedPrice);
+      if (!Number.isFinite(quoteAmount) || quoteAmount < 1) {
         return res.status(400).json({ message: 'Enter a price in kwacha.' });
       }
-      updates.quoted_price = amount;
-      updates.total_amount = amount;
     }
+
+    const updates = { status: isQuote ? booking.status : status };
+    if (isQuote) updates.quoted_price = quoteAmount;
 
     await booking.update(updates);
 
@@ -298,27 +300,38 @@ exports.updateBookingStatus = async (req, res) => {
       await markBookingVerified(booking.id);
     }
 
-    // Money moves: re-priced on accept, earned on completion, void on cancellation.
-    if (updates.total_amount !== undefined) {
-      await syncTransaction(booking, { amount: updates.total_amount });
+    const providerProfile = await Provider.findByPk(booking.provider_id, { attributes: ['user_id'] });
+
+    if (isQuote) {
+      // The ledger keeps the listed price until the customer accepts; the
+      // timeline records the proposal so the wait is visible to both parties.
+      await recordStatus(
+        booking.id,
+        booking.status,
+        `Provider proposed K${quoteAmount} — waiting for the customer to accept`,
+        req.user.id,
+      );
+
+      const payload = { bookingId: booking.id, quoted_price: quoteAmount, timestamp: new Date().toISOString() };
+      emitToBooking(booking.id, 'booking-quote', payload);
+      emitToUser(booking.customer_id, 'booking-quote', payload);
+
+      await notifyBookingUpdate(booking.customer_id, 'quote', booking.id);
+      if (providerProfile) await notifyBookingUpdate(providerProfile.user_id, 'quote', booking.id);
+
+      return res.json({ message: 'Quote sent to the customer.', booking });
     }
+
+    // Money moves: earned on completion, voided on cancellation.
     if (status === 'completed') {
       await syncTransaction(booking, { status: 'EARNED' });
     }
 
-    await recordStatus(
-      booking.id,
-      status,
-      status === 'accepted' && updates.total_amount !== undefined
-        ? `Provider accepted at K${updates.total_amount}`
-        : null,
-      req.user.id,
-    );
+    await recordStatus(booking.id, status, null, req.user.id);
 
     await broadcastBookingStatus(booking.id, status, booking.customer_id, booking.provider_id);
     // Persist + push a notification to both parties for every status change.
     await notifyBookingUpdate(booking.customer_id, status, booking.id);
-    const providerProfile = await Provider.findByPk(booking.provider_id, { attributes: ['user_id'] });
     if (providerProfile) await notifyBookingUpdate(providerProfile.user_id, status, booking.id);
 
     return res.json({ message: 'Booking status updated.', booking });

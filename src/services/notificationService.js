@@ -37,6 +37,7 @@ const notifyBookingUpdate = async (userId, status, bookingId) => {
     pending: { title: 'Booking Submitted', body: 'Your booking request has been submitted.' },
     assigned: { title: 'Provider Assigned', body: 'A provider has been assigned to your booking.' },
     accepted: { title: 'Booking Accepted', body: 'Your booking has been accepted by the provider.' },
+    quote: { title: 'New Price Quote', body: 'The provider sent a price. Accept it to confirm the booking.' },
     rejected: { title: 'Booking Rejected', body: 'Your booking has been rejected by the provider.' },
     'in-progress': { title: 'Service In Progress', body: 'Your service is now in progress.' },
     'on-the-way': { title: 'Provider On The Way', body: 'Your provider is on the way to you.' },
