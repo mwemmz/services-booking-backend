@@ -39,6 +39,10 @@ const applyEnumMigrations = async () => {
  */
 const COLUMN_MIGRATIONS = [
   { table: 'bookings', column: 'quoted_price', definition: 'DECIMAL(10, 2)' },
+  { table: 'categories', column: 'slug', definition: 'VARCHAR(255)' },
+  { table: 'categories', column: 'image_url', definition: 'VARCHAR(255)' },
+  { table: 'categories', column: 'display_order', definition: 'INTEGER' },
+  { table: 'services', column: 'catalog_service_id', definition: 'UUID' },
 ];
 
 const applyColumnMigrations = async () => {
@@ -52,4 +56,43 @@ const applyColumnMigrations = async () => {
   }
 };
 
-module.exports = { applyEnumMigrations, applyColumnMigrations };
+/**
+ * Categories that predate the slug column still need one, backfilled from the
+ * name, and the column is only unique-safe once every row has a value.
+ */
+const backfillCategorySlugs = async () => {
+  try {
+    const [rows] = await sequelize.query(
+      `SELECT id, name FROM "categories" WHERE slug IS NULL OR slug = ''`,
+    );
+    if (rows.length === 0) return;
+
+    for (const row of rows) {
+      const slug = String(row.name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      await sequelize.query(`UPDATE "categories" SET slug = :slug WHERE id = :id`, {
+        replacements: { slug: slug || `category-${row.id.slice(0, 8)}`, id: row.id },
+      });
+    }
+    console.log(`[migration] backfilled slugs for ${rows.length} categor(ies)`);
+  } catch (error) {
+    console.warn(`[migration] category slug backfill skipped: ${error.message}`);
+  }
+};
+
+const applyCatalogMigrations = async () => {
+  await applyColumnMigrations();
+  await backfillCategorySlugs();
+
+  try {
+    await sequelize.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "categories_slug_unique" ON "categories" (slug)`,
+    );
+  } catch (error) {
+    console.warn(`[migration] categories slug index skipped: ${error.message}`);
+  }
+};
+
+module.exports = { applyEnumMigrations, applyColumnMigrations, applyCatalogMigrations };

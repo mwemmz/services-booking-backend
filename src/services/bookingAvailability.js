@@ -1,4 +1,4 @@
-const { Booking, Provider } = require('../models');
+const { Booking, Provider, ProviderAvailability } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -81,14 +81,25 @@ const toHHMM = (mins) => {
 };
 
 exports.generateSlots = async ({ providerId, date, slotMinutes = 30, durationMin }) => {
-  const targetDay = DAY_NAMES[normalizeDate(date).getDay()];
+  const dayOfWeek = normalizeDate(date).getDay();
+  const targetDay = DAY_NAMES[dayOfWeek];
 
   const provider = await Provider.findByPk(providerId);
-  if (!provider || !provider.working_hours) {
-    return { slots: [], message: 'Provider has no working hours configured.' };
+  if (!provider) {
+    return { slots: [], message: 'Provider not found.' };
   }
 
-  const dayRanges = provider.working_hours[targetDay];
+  // ProviderAvailability is the source of truth now that providers edit their
+  // week from the app. working_hours is the older JSON blob and still stands in
+  // for anyone who has not set up a week yet.
+  const availability = await ProviderAvailability.findOne({
+    where: { provider_id: providerId, day_of_week: dayOfWeek, is_active: true },
+  });
+
+  const dayRanges = availability
+    ? [{ start: availability.start_time, end: availability.end_time }]
+    : provider.working_hours?.[targetDay];
+
   if (!dayRanges || dayRanges.length === 0) {
     return { slots: [], message: `Provider is not available on ${targetDay}.` };
   }

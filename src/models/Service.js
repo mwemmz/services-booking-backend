@@ -32,6 +32,11 @@ const Service = sequelize.define('Service', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  catalog_service_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    comment: 'The catalogue entry this provider is offering, when they picked one',
+  },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

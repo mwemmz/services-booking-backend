@@ -11,7 +11,7 @@ const sequelize = require('./config/database');
 const { initSocket } = require('./config/socket');
 const errorHandler = require('./middleware/errorHandler');
 const { scheduleBookingExpiry } = require('./services/bookingExpiryCron');
-const { applyEnumMigrations, applyColumnMigrations } = require('./services/schemaMigrations');
+const { applyEnumMigrations, applyCatalogMigrations } = require('./services/schemaMigrations');
 const { UPLOAD_DIR } = require('./services/uploadService');
 
 const authRoutes = require('./routes/auth');
@@ -36,6 +36,7 @@ const portfolioRoutes = require('./routes/portfolio');
 const geoRoutes = require('./routes/geo');
 const messageRoutes = require('./routes/messages');
 const favouriteRoutes = require('./routes/favourites');
+const catalogRoutes = require('./routes/catalog');
 
 const app = express();
 const server = http.createServer(app);
@@ -88,6 +89,7 @@ app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/favourites', favouriteRoutes);
+app.use('/api/catalog', catalogRoutes);
 
 // Serve uploaded files (base64 uploads) statically.
 app.use('/uploads', express.static(UPLOAD_DIR));
@@ -159,7 +161,7 @@ const startServer = async () => {
     console.log('Database connected successfully.');
 
     await applyEnumMigrations();
-    await applyColumnMigrations();
+    await applyCatalogMigrations();
 
     await sequelize.sync({ alter: config.nodeEnv === 'development' });
     console.log('Database synced.');

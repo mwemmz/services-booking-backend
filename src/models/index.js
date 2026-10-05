@@ -7,6 +7,8 @@ const Review = require('./Review');
 const Notification = require('./Notification');
 const Location = require('./Location');
 const Category = require('./Category');
+const CatalogService = require('./CatalogService');
+const ProviderAvailability = require('./ProviderAvailability');
 const Certification = require('./Certification');
 const Crew = require('./Crew');
 const CrewMember = require('./CrewMember');
@@ -108,6 +110,16 @@ Transaction.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 Provider.hasMany(Transaction, { foreignKey: 'provider_id', as: 'transactions' });
 Transaction.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 
+// Catalogue: the browsable menu of work, and what a provider offers from it.
+Category.hasMany(CatalogService, { foreignKey: 'category_id', as: 'catalogServices' });
+CatalogService.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+CatalogService.hasMany(Service, { foreignKey: 'catalog_service_id', as: 'offerings' });
+Service.belongsTo(CatalogService, { foreignKey: 'catalog_service_id', as: 'catalogService' });
+
+// Recurring working hours that bookings are placed inside.
+Provider.hasMany(ProviderAvailability, { foreignKey: 'provider_id', as: 'availability' });
+ProviderAvailability.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
+
 module.exports = {
   User,
   Provider,
@@ -117,7 +129,9 @@ module.exports = {
   Review,
   Notification,
   Location,
-  Category,
+Category,
+  CatalogService,
+  ProviderAvailability,
   Certification,
   Crew,
   CrewMember,
