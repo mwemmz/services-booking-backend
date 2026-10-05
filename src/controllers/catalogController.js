@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Category, CatalogService, Service, Provider, User, Review, Favourite } = require('../models');
+const { Category, CatalogService, Service, Provider, User, Favourite } = require('../models');
 
 /**
  * The browsable catalogue: categories, the services under them, and how many
@@ -127,7 +127,6 @@ exports.listProvidersForService = async (req, res) => {
           required: true,
           where: { catalog_service_id: catalogService.id, is_active: true },
         },
-        { model: Review, as: 'reviews', required: false },
       ],
       order: [['rating', 'DESC']],
     });
