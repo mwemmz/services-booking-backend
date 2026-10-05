@@ -19,7 +19,10 @@ const broadcastBookingStatus = async (bookingId, status, customerId, providerId)
 
 const VALID_TRANSITIONS = {
   pending: ['accepted', 'rejected', 'cancelled'],
-  accepted: ['in-progress', 'cancelled'],
+  assigned: ['accepted', 'rejected', 'cancelled'],
+  accepted: ['on_the_way', 'in-progress', 'cancelled'],
+  'on_the_way': ['arrived', 'cancelled'],
+  arrived: ['in-progress'],
   'in-progress': ['completed'],
   completed: ['paid'],
 };
@@ -275,7 +278,7 @@ exports.cancelBooking = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to cancel this booking.' });
     }
 
-    if (!['pending', 'accepted'].includes(booking.status)) {
+    if (!['pending', 'accepted', 'on_the_way'].includes(booking.status)) {
       return res.status(400).json({ message: 'Can only cancel bookings that are pending or accepted.' });
     }
 

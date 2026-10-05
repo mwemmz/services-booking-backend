@@ -11,6 +11,7 @@ const sequelize = require('./config/database');
 const { initSocket } = require('./config/socket');
 const errorHandler = require('./middleware/errorHandler');
 const { scheduleBookingExpiry } = require('./services/bookingExpiryCron');
+const { applyEnumMigrations } = require('./services/schemaMigrations');
 const { UPLOAD_DIR } = require('./services/uploadService');
 
 const authRoutes = require('./routes/auth');
@@ -146,6 +147,8 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connected successfully.');
+
+    await applyEnumMigrations();
 
     await sequelize.sync({ alter: config.nodeEnv === 'development' });
     console.log('Database synced.');

@@ -38,6 +38,8 @@ const notifyBookingUpdate = async (userId, status, bookingId) => {
     assigned: { title: 'Provider Assigned', body: 'A provider has been assigned to your booking.' },
     accepted: { title: 'Booking Accepted', body: 'Your booking has been accepted by the provider.' },
     rejected: { title: 'Booking Rejected', body: 'Your booking has been rejected by the provider.' },
+    on_the_way: { title: 'Provider On The Way', body: 'Your provider is on the way to you.' },
+    arrived: { title: 'Provider Arrived', body: 'Your provider has arrived.' },
     'in-progress': { title: 'Service In Progress', body: 'Your service is now in progress.' },
     completed: { title: 'Service Completed', body: 'Your service has been completed.' },
     paid: { title: 'Payment Confirmed', body: 'Your payment has been confirmed.' },

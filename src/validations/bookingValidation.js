@@ -8,10 +8,16 @@ const createBookingRules = [
   body('crew_id').optional().isUUID().withMessage('crew_id must be a valid UUID'),
 ];
 
+const BOOKING_STATUSES = [
+  'pending', 'assigned', 'accepted', 'rejected',
+  'on_the_way', 'arrived', 'in-progress',
+  'completed', 'paid', 'cancelled', 'expired',
+];
+
 const updateStatusRules = [
   body('status')
-    .isIn(['pending', 'assigned', 'accepted', 'rejected', 'in-progress', 'completed', 'paid', 'cancelled'])
-    .withMessage('Status must be one of: pending, assigned, accepted, rejected, in-progress, completed, paid, cancelled'),
+    .isIn(BOOKING_STATUSES)
+    .withMessage(`Status must be one of: ${BOOKING_STATUSES.join(', ')}`),
 ];
 
 module.exports = {

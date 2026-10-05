@@ -26,7 +26,8 @@ const Booking = sequelize.define('Booking', {
   status: {
     type: DataTypes.ENUM(
       'pending', 'assigned', 'accepted', 'rejected',
-      'in-progress', 'completed', 'paid', 'cancelled', 'expired'
+      'on_the_way', 'arrived', 'in-progress',
+      'completed', 'paid', 'cancelled', 'expired'
     ),
     defaultValue: 'pending',
   },
