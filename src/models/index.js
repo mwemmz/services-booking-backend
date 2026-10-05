@@ -16,6 +16,7 @@ const Conversation = require('./Conversation');
 const Message = require('./Message');
 const Favourite = require('./Favourite');
 const Address = require('./Address');
+const PortfolioItem = require('./PortfolioItem');
 
 User.hasOne(Provider, { foreignKey: 'user_id', as: 'providerProfile' });
 Provider.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -91,6 +92,10 @@ Favourite.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 User.hasMany(Address, { foreignKey: 'user_id', as: 'addresses' });
 Address.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+// Portfolio: a provider showcases images of past work.
+Provider.hasMany(PortfolioItem, { foreignKey: 'provider_id', as: 'portfolio' });
+PortfolioItem.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
+
 module.exports = {
   User,
   Provider,
@@ -110,4 +115,5 @@ module.exports = {
   Message,
   Favourite,
   Address,
+  PortfolioItem,
 };

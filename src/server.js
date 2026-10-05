@@ -32,6 +32,8 @@ const nationalIdRoutes = require('./routes/nationalIds');
 const insightRoutes = require('./routes/insights');
 const endorsementRoutes = require('./routes/endorsements');
 const addressRoutes = require('./routes/addresses');
+const portfolioRoutes = require('./routes/portfolio');
+const geoRoutes = require('./routes/geo');
 const messageRoutes = require('./routes/messages');
 const favouriteRoutes = require('./routes/favourites');
 
@@ -82,6 +84,8 @@ app.use('/api/national-id', nationalIdRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/endorsements', endorsementRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/geo', geoRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/favourites', favouriteRoutes);
 

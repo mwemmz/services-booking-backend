@@ -35,6 +35,11 @@ module.exports = {
     maxAccuracyMeters: parseFloat(process.env.LOCATION_MAX_ACCURACY || '50'),
     minIntervalSeconds: parseFloat(process.env.LOCATION_MIN_INTERVAL || '3'),
   },
+  geo: {
+    nominatimUrl: process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org',
+    osrmUrl: process.env.OSRM_URL || 'https://router.project-osrm.org',
+    userAgent: process.env.GEO_USER_AGENT || 'ServiceHub/1.0 (contact: support@servicehub.app)',
+  },
   payment: {
     apiUrl: process.env.PAYMENT_API_URL,
     apiKey: process.env.PAYMENT_API_KEY,
