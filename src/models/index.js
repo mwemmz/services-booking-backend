@@ -15,6 +15,7 @@ const Endorsement = require('./Endorsement');
 const Conversation = require('./Conversation');
 const Message = require('./Message');
 const Favourite = require('./Favourite');
+const Address = require('./Address');
 
 User.hasOne(Provider, { foreignKey: 'user_id', as: 'providerProfile' });
 Provider.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -86,6 +87,10 @@ Favourite.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Provider.hasMany(Favourite, { foreignKey: 'provider_id', as: 'favouritedBy' });
 Favourite.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 
+// Saved addresses: a user keeps reusable home/office locations for booking.
+User.hasMany(Address, { foreignKey: 'user_id', as: 'addresses' });
+Address.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 module.exports = {
   User,
   Provider,
@@ -104,4 +109,5 @@ module.exports = {
   Conversation,
   Message,
   Favourite,
+  Address,
 };
