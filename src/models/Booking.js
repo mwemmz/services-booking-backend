@@ -35,6 +35,12 @@ const Booking = sequelize.define('Booking', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
   },
+  // Set when a provider prices the job differently from the service listed price.
+  // The customer accepts this quote, which copies it into total_amount.
+  quoted_price: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
   location_lat: {
     type: DataTypes.DECIMAL(10, 8),
     allowNull: true,

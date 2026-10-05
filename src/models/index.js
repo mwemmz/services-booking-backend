@@ -17,6 +17,8 @@ const Message = require('./Message');
 const Favourite = require('./Favourite');
 const Address = require('./Address');
 const PortfolioItem = require('./PortfolioItem');
+const BookingStatusHistory = require('./BookingStatusHistory');
+const Transaction = require('./Transaction');
 
 User.hasOne(Provider, { foreignKey: 'user_id', as: 'providerProfile' });
 Provider.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -96,6 +98,16 @@ Address.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Provider.hasMany(PortfolioItem, { foreignKey: 'provider_id', as: 'portfolio' });
 PortfolioItem.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 
+// Booking timeline: one row per status change, oldest first for display.
+Booking.hasMany(BookingStatusHistory, { foreignKey: 'booking_id', as: 'statusHistory' });
+BookingStatusHistory.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
+
+// Earnings ledger: what a provider is owed for a booking and whether it paid out.
+Booking.hasOne(Transaction, { foreignKey: 'booking_id', as: 'transaction' });
+Transaction.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
+Provider.hasMany(Transaction, { foreignKey: 'provider_id', as: 'transactions' });
+Transaction.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
+
 module.exports = {
   User,
   Provider,
@@ -116,4 +128,6 @@ module.exports = {
   Favourite,
   Address,
   PortfolioItem,
+  BookingStatusHistory,
+  Transaction,
 };

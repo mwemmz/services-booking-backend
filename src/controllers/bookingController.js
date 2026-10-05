@@ -1,11 +1,17 @@
 const { Op } = require('sequelize');
-const { Booking, User, Provider, Service, Payment, Crew, Review, Endorsement } = require('../models');
+const {
+  Booking, User, Provider, Service, Payment, Crew, Review, Endorsement,
+  BookingStatusHistory, Transaction,
+} = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { checkAvailability, generateSlots } = require('../services/bookingAvailability');
 const { markBookingVerified } = require('../services/providerTrustService');
 const { createNotification, notifyBookingUpdate } = require('../services/notificationService');
 const { sendBookingConfirmation } = require('../services/emailService');
 const { emitToUser, emitToBooking } = require('../config/socket');
+
+// Timeline + earnings helpers, shared with the expiry cron.
+const { recordStatus, syncTransaction } = require('../services/bookingLedger');
 
 /** Push a booking status change to everyone involved (customer, provider, viewers). */
 const broadcastBookingStatus = async (bookingId, status, customerId, providerId) => {
@@ -81,6 +87,10 @@ exports.createBooking = async (req, res) => {
       expires_at: expiresAt,
       status: 'pending',
     });
+
+    // Timeline entry and the opening ledger row for what the provider will earn.
+    await recordStatus(booking.id, 'pending', 'Booking requested', req.user.id);
+    await syncTransaction(booking, { amount: service.price, status: 'PENDING' });
 
     const fullBooking = await Booking.findByPk(booking.id, {
       include: [
@@ -225,6 +235,13 @@ exports.getBookingById = async (req, res) => {
         { model: Crew, as: 'crew', include: [{ model: Provider, as: 'members' }] },
         { model: Review, as: 'review' },
         { model: Endorsement, as: 'endorsement' },
+        { model: Transaction, as: 'transaction' },
+        {
+          model: BookingStatusHistory,
+          as: 'statusHistory',
+          separate: true,
+          order: [['createdAt', 'ASC']],
+        },
       ],
     });
 
@@ -240,7 +257,7 @@ exports.getBookingById = async (req, res) => {
 
 exports.updateBookingStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, quoted_price: quotedPrice } = req.body;
 
     const booking = await Booking.findByPk(req.params.id);
     if (!booking) {
@@ -260,6 +277,18 @@ exports.updateBookingStatus = async (req, res) => {
     }
 
     const updates = { status };
+
+    // A provider may price the job differently from the listed price when they
+    // accept. Store the quote alongside the amount the customer agreed to pay.
+    if (status === 'accepted' && quotedPrice !== undefined && quotedPrice !== null) {
+      const amount = Number(quotedPrice);
+      if (!Number.isFinite(amount) || amount < 1) {
+        return res.status(400).json({ message: 'Enter a price in kwacha.' });
+      }
+      updates.quoted_price = amount;
+      updates.total_amount = amount;
+    }
+
     await booking.update(updates);
 
     // A booking is only verified work history once the customer reviews it AND
@@ -268,6 +297,23 @@ exports.updateBookingStatus = async (req, res) => {
     if (['completed', 'paid'].includes(status)) {
       await markBookingVerified(booking.id);
     }
+
+    // Money moves: re-priced on accept, earned on completion, void on cancellation.
+    if (updates.total_amount !== undefined) {
+      await syncTransaction(booking, { amount: updates.total_amount });
+    }
+    if (status === 'completed') {
+      await syncTransaction(booking, { status: 'EARNED' });
+    }
+
+    await recordStatus(
+      booking.id,
+      status,
+      status === 'accepted' && updates.total_amount !== undefined
+        ? `Provider accepted at K${updates.total_amount}`
+        : null,
+      req.user.id,
+    );
 
     await broadcastBookingStatus(booking.id, status, booking.customer_id, booking.provider_id);
     // Persist + push a notification to both parties for every status change.
@@ -278,6 +324,77 @@ exports.updateBookingStatus = async (req, res) => {
     return res.json({ message: 'Booking status updated.', booking });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to update booking status.', error: error.message });
+  }
+};
+
+/**
+ * Provider declines a pending request. Distinct from a cancellation because the
+ * request was never taken on, so the ledger row is voided rather than cancelled.
+ */
+exports.rejectBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findByPk(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found.' });
+    }
+
+    const provider = await Provider.findOne({ where: { user_id: req.user.id } });
+    if (!provider || booking.provider_id !== provider.id) {
+      return res.status(403).json({ message: 'Not authorized to decline this request.' });
+    }
+
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ message: 'This request can no longer be declined.' });
+    }
+
+    const note = (req.body.reason || '').trim() || 'Provider declined the request';
+
+    await booking.update({ status: 'rejected' });
+    await syncTransaction(booking, { status: 'VOID' });
+    await recordStatus(booking.id, 'rejected', note, req.user.id);
+
+    await broadcastBookingStatus(booking.id, 'rejected', booking.customer_id, booking.provider_id);
+    await notifyBookingUpdate(booking.customer_id, 'rejected', booking.id);
+
+    return res.json({ message: 'Request declined.', booking });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to decline request.', error: error.message });
+  }
+};
+
+/**
+ * Customer accepts the price a provider quoted, which locks the job in at that
+ * amount. Without a quote there is nothing to confirm.
+ */
+exports.confirmQuote = async (req, res) => {
+  try {
+    const booking = await Booking.findByPk(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found.' });
+    }
+
+    if (booking.customer_id !== req.user.id) {
+      return res.status(403).json({ message: 'You can only accept quotes on your own bookings.' });
+    }
+
+    if (booking.status !== 'pending' || booking.quoted_price === null) {
+      return res.status(400).json({ message: 'There is no price to accept yet.' });
+    }
+
+    const amount = Number(booking.quoted_price);
+    await booking.update({ status: 'accepted', total_amount: amount });
+
+    await syncTransaction(booking, { amount, status: 'PENDING' });
+    await recordStatus(booking.id, 'accepted', `Customer accepted the price of K${amount}`, req.user.id);
+
+    await broadcastBookingStatus(booking.id, 'accepted', booking.customer_id, booking.provider_id);
+    await notifyBookingUpdate(booking.customer_id, 'accepted', booking.id);
+    const providerProfile = await Provider.findByPk(booking.provider_id, { attributes: ['user_id'] });
+    if (providerProfile) await notifyBookingUpdate(providerProfile.user_id, 'accepted', booking.id);
+
+    return res.json({ message: 'Quote accepted.', booking });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to accept quote.', error: error.message });
   }
 };
 
@@ -304,6 +421,9 @@ exports.cancelBooking = async (req, res) => {
     }
 
     await booking.update({ status: 'cancelled' });
+
+    await syncTransaction(booking, { status: 'VOID' });
+    await recordStatus(booking.id, 'cancelled', 'Booking cancelled', req.user.id);
 
     await broadcastBookingStatus(booking.id, 'cancelled', booking.customer_id, booking.provider_id);
     // Let both sides know the job is off.
@@ -483,6 +603,10 @@ exports.rebookBooking = async (req, res) => {
       expires_at: expiresAt,
       status: 'pending',
     });
+
+    // A rebook is a fresh request, so it starts its own timeline and ledger row.
+    await recordStatus(booking.id, 'pending', 'Booking requested', req.user.id);
+    await syncTransaction(booking, { amount: service.price, status: 'PENDING' });
 
     const fullBooking = await Booking.findByPk(booking.id, {
       include: [

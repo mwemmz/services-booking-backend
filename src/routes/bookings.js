@@ -5,6 +5,8 @@ const {
   getAllBookings,
   getBookingById,
   updateBookingStatus,
+  rejectBooking,
+  confirmQuote,
   cancelBooking,
   getCustomerBookings,
   getProviderBookings,
@@ -33,6 +35,8 @@ router.get('/provider/:providerId', authenticate, getProviderBookings);
 router.get('/provider/:providerId/work-history', authenticate, getWorkHistory);
 router.get('/:id', authenticate, getBookingById);
 router.put('/:id/status', authenticate, [...updateStatusRules, validate], updateBookingStatus);
+router.put('/:id/reject', authenticate, authorize('provider'), rejectBooking);
+router.put('/:id/confirm-quote', authenticate, authorize('customer'), confirmQuote);
 router.put('/:id/cancel', authenticate, cancelBooking);
 router.post('/:id/rebook', authenticate, rebookBooking);
 

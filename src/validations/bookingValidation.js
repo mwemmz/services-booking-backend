@@ -15,6 +15,11 @@ const updateStatusRules = [
   body('status')
     .isIn(['pending', 'assigned', 'accepted', 'rejected', 'on-the-way', 'arrived', 'in-progress', 'completed', 'paid', 'cancelled'])
     .withMessage('Status must be one of: pending, assigned, accepted, rejected, on-the-way, arrived, in-progress, completed, paid, cancelled'),
+  // Optional: a provider may accept at a price other than the service listed price.
+  body('quoted_price')
+    .optional({ nullable: true })
+    .isFloat({ min: 1 })
+    .withMessage('quoted_price must be a positive amount'),
 ];
 
 module.exports = {

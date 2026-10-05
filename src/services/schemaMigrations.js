@@ -32,4 +32,24 @@ const applyEnumMigrations = async () => {
   }
 };
 
-module.exports = { applyEnumMigrations };
+/**
+ * Columns added to existing models after the database was first created. New
+ * tables need no entry here because sync() creates them; new columns on an
+ * existing table do, since production runs with alter disabled.
+ */
+const COLUMN_MIGRATIONS = [
+  { table: 'bookings', column: 'quoted_price', definition: 'DECIMAL(10, 2)' },
+];
+
+const applyColumnMigrations = async () => {
+  for (const { table, column, definition } of COLUMN_MIGRATIONS) {
+    try {
+      await sequelize.query(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS "${column}" ${definition}`);
+      console.log(`[migration] ${table}.${column} ready`);
+    } catch (error) {
+      console.warn(`[migration] skipped ${table}.${column}: ${error.message}`);
+    }
+  }
+};
+
+module.exports = { applyEnumMigrations, applyColumnMigrations };
