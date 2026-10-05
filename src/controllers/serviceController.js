@@ -127,7 +127,10 @@ exports.deleteService = async (req, res) => {
 
 exports.getProviderServices = async (req, res) => {
   try {
-    const provider = await Provider.findOne({ where: { user_id: req.params.providerId || req.user.id } });
+    // The public route is keyed by provider id; the authenticated route falls back to
+// the caller's own provider. Comparing a provider id against user_id never matches.
+const where = req.params.providerId ? { id: req.params.providerId } : { user_id: req.user.id };
+    const provider = await Provider.findOne({ where });
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found.' });
     }
