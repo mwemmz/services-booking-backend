@@ -11,6 +11,10 @@ const updateServiceRules = [
   body('name').optional().notEmpty().withMessage('Service name cannot be empty'),
   body('price').optional().isFloat({ gt: 0 }).withMessage('Price must be a number greater than 0'),
   body('duration').optional().isInt({ gt: 0 }).withMessage('Duration must be an integer greater than 0'),
+  body('catalog_service_id')
+    .optional({ nullable: true })
+    .isUUID()
+    .withMessage('catalog_service_id must be a valid UUID'),
 ];
 
 module.exports = {

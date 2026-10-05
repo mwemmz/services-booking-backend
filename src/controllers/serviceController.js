@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Service, Provider } = require('../models');
+const { Service, Provider, CatalogService, Category } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 
 exports.createService = async (req, res) => {
@@ -89,7 +89,7 @@ exports.updateService = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this service.' });
     }
 
-    const allowedFields = ['name', 'description', 'price', 'duration', 'category', 'image'];
+    const allowedFields = ['name', 'description', 'price', 'duration', 'category', 'image', 'catalog_service_id'];
     const updates = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
@@ -97,9 +97,24 @@ exports.updateService = async (req, res) => {
       }
     }
 
+    // Attaching a catalogue entry is what puts this service in the storefront's
+    // category pages, so the reference has to point at a real entry.
+    if (updates.catalog_service_id) {
+      const catalogService = await CatalogService.findByPk(updates.catalog_service_id, {
+        include: [{ model: Category, as: 'category' }],
+      });
+      if (!catalogService) {
+        return res.status(400).json({ message: 'That catalogue service does not exist.' });
+      }
+      updates.category = catalogService.category.name;
+    }
+
     await service.update(updates);
 
-    return res.json({ message: 'Service updated.', service });
+    return res.json({
+      message: 'Service updated.',
+      service: await Service.findByPk(service.id, { include: [{ model: CatalogService, as: 'catalogService' }] }),
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to update service.', error: error.message });
   }
