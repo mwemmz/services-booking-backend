@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   createService,
   getAllServices,
@@ -13,6 +14,9 @@ const {
   createServiceRules,
   updateServiceRules,
 } = require('../validations/serviceValidation');
+
+router.param('id', uuidParam('id'));
+router.param('providerId', uuidParam('providerId'));
 
 router.post('/', authenticate, authorize('provider'), [...createServiceRules, validate], createService);
 router.get('/', getAllServices);

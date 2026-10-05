@@ -41,6 +41,8 @@ const notifyBookingUpdate = async (userId, status, bookingId) => {
     on_the_way: { title: 'Provider On The Way', body: 'Your provider is on the way to you.' },
     arrived: { title: 'Provider Arrived', body: 'Your provider has arrived.' },
     'in-progress': { title: 'Service In Progress', body: 'Your service is now in progress.' },
+    'on-the-way': { title: 'Provider On The Way', body: 'Your provider is on the way to you.' },
+    'arrived': { title: 'Provider Arrived', body: 'Your provider has arrived at the location.' },
     completed: { title: 'Service Completed', body: 'Your service has been completed.' },
     paid: { title: 'Payment Confirmed', body: 'Your payment has been confirmed.' },
     cancelled: { title: 'Booking Cancelled', body: 'Your booking has been cancelled.' },

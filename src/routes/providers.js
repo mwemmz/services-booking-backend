@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   registerAsProvider,
   getAllProviders,
@@ -14,6 +15,8 @@ const {
   registerProviderRules,
   updateProviderRules,
 } = require('../validations/providerValidation');
+
+router.param('id', uuidParam('id'));
 
 router.post('/', authenticate, [...registerProviderRules, validate], registerAsProvider);
 router.get('/', getAllProviders);

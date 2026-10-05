@@ -57,12 +57,15 @@ const sendPasswordReset = async (to, resetToken) => {
   await sendEmail(to, 'Password Reset', html);
 };
 
-const sendEmailVerification = async (to, verifyToken) => {
-  const verifyLink = `${config.frontendUrl}/verify-email?token=${verifyToken}`;
+const sendEmailVerification = async (to, verifyCode) => {
+  const verifyLink = `${config.frontendUrl}/verify-email?token=${verifyCode}`;
 
   const html = `
     <h2>Verify Your Email</h2>
-    <p>Welcome! Please confirm your email address by clicking the link below:</p>
+    <p>Welcome! Your verification code is:</p>
+    <h1 style="letter-spacing: 6px; margin: 8px 0;">${verifyCode}</h1>
+    <p>Enter it in the app to confirm your email address.</p>
+    <p style="color: #666;">Or click the link below:</p>
     <a href="${verifyLink}" style="display: inline-block; padding: 12px 24px; background-color: #2196F3; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">Verify Email</a>
     <p style="color: #666;">If you did not create an account, please ignore this email.</p>
   `;

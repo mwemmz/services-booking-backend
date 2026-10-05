@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   createCrew,
   getMyCrews,
@@ -10,6 +11,9 @@ const {
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { createCrewRules } = require('../validations/crewValidation');
+
+router.param('id', uuidParam('id'));
+router.param('memberId', uuidParam('memberId'));
 
 router.post('/', authenticate, authorize('provider'), [...createCrewRules, validate], createCrew);
 router.get('/mine', authenticate, authorize('provider'), getMyCrews);

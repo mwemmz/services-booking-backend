@@ -68,7 +68,7 @@ exports.getBookingPayments = async (req, res) => {
 
     const query = paginate({
       where: { booking_id: req.params.bookingId },
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: payments } = await Payment.findAndCountAll(query);

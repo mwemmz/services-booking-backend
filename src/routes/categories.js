@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   getAllCategories,
   createCategory,
@@ -6,6 +7,8 @@ const {
   deleteCategory,
 } = require('../controllers/categoryController');
 const { authenticate, authorize } = require('../middleware/auth');
+
+router.param('id', uuidParam('id'));
 
 router.get('/', getAllCategories);
 router.post('/', authenticate, authorize('admin'), createCategory);

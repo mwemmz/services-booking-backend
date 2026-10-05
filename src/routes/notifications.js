@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   getNotifications,
   markAsRead,
@@ -7,6 +8,8 @@ const {
   getUnreadCount,
 } = require('../controllers/notificationController');
 const { authenticate } = require('../middleware/auth');
+
+router.param('id', uuidParam('id'));
 
 router.get('/', authenticate, getNotifications);
 router.get('/unread-count', authenticate, getUnreadCount);

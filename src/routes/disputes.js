@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { uuidParam } = require('../utils/uuid');
 const {
   createDispute,
   getMyDisputes,
@@ -11,6 +12,8 @@ const {
   createDisputeRules,
   resolveDisputeRules,
 } = require('../validations/disputeValidation');
+
+router.param('id', uuidParam('id'));
 
 router.post('/', authenticate, [...createDisputeRules, validate], createDispute);
 router.get('/mine', authenticate, getMyDisputes);

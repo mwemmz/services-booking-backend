@@ -48,7 +48,10 @@ exports.getAllProviders = async (req, res) => {
 
     const query = paginate({
       where,
-      include: [{ model: User, as: 'user', ...publicUserAttributes }],
+      include: [
+        { model: User, as: 'user', ...publicUserAttributes },
+        { model: Service, as: 'services', where: { is_active: true }, required: false },
+      ],
       order: [['rating', 'DESC']],
     }, { page, limit });
 
@@ -139,7 +142,10 @@ exports.getNearbyProviders = async (req, res) => {
 
     const providers = await Provider.findAll({
       where: { is_online: true, location_lat: { [Op.ne]: null }, location_lng: { [Op.ne]: null } },
-      include: [{ model: User, as: 'user', ...publicUserAttributes }],
+      include: [
+        { model: User, as: 'user', ...publicUserAttributes },
+        { model: Service, as: 'services', where: { is_active: true }, required: false },
+      ],
     });
 
     const nearby = providers.filter((provider) => {

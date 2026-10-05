@@ -57,7 +57,7 @@ exports.getBookingLocationHistory = async (req, res) => {
     const locations = await Location.findAll({
       where: { booking_id: req.params.bookingId },
       include: [{ model: Provider, as: 'provider' }],
-      order: [['created_at', 'ASC']],
+      order: [['createdAt', 'ASC']],
     });
 
     return res.json({ locations });

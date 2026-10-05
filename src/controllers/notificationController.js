@@ -7,7 +7,7 @@ exports.getNotifications = async (req, res) => {
 
     const query = paginate({
       where: { user_id: req.user.id },
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: notifications } = await Notification.findAndCountAll(query);

@@ -47,7 +47,7 @@ exports.getAllServices = async (req, res) => {
     const query = paginate({
       where,
       include: [{ model: Provider, as: 'provider', include: [{ model: require('../models').User, as: 'user' }] }],
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
     }, { page, limit });
 
     const { count, rows: services } = await Service.findAndCountAll(query);
