@@ -73,13 +73,16 @@ exports.listCatalogServices = async (req, res) => {
   try {
     const { category, q } = req.query;
     const where = {};
-    if (category) where.category = { slug: category };
     if (q) where.name = { [Op.iLike]: `%${q}%` };
 
     const services = await CatalogService.findAll({
       where,
       include: [
-        { model: Category, as: 'category' },
+        // An explicit include with required:true is what actually filters by the
+        // related category's slug; a bare { category: { slug } } does not.
+        ...(category
+          ? [{ model: Category, as: 'category', required: true, where: { slug: category } }]
+          : [{ model: Category, as: 'category', required: false }]),
         { model: Service, as: 'offerings', required: false, where: { is_active: true }, attributes: ['id'] },
       ],
       order: [['name', 'ASC']],

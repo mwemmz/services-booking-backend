@@ -1,5 +1,6 @@
-const { Op, sequelize } = require('sequelize');
+const { Op } = require('sequelize');
 const { Provider, User, Service, ProviderAvailability } = require('../models');
+const db = require('../config/database');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { haversineDistance } = require('../utils/distance');
 
@@ -252,7 +253,7 @@ exports.replaceMyAvailability = async (req, res) => {
       normalised.push({ day_of_week: day, start_time: start, end_time: end, is_active: window?.is_active !== false });
     }
 
-await sequelize.transaction(async (transaction) => {
+await db.transaction(async (transaction) => {
       await ProviderAvailability.destroy({ where: { provider_id: provider.id }, transaction });
       if (normalised.length > 0) {
         await ProviderAvailability.bulkCreate(

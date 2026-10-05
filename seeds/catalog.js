@@ -82,6 +82,7 @@ const seedCatalog = async () => {
         name: entry.name,
         slug: entry.slug,
         icon: entry.icon,
+        image_url: entry.imageUrl ?? null,
         description: entry.description,
         display_order: index,
       },
@@ -93,6 +94,7 @@ const seedCatalog = async () => {
       await category.update({
         name: entry.name,
         icon: entry.icon,
+        image_url: entry.imageUrl ?? null,
         description: entry.description,
         display_order: index,
       });
