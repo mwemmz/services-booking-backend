@@ -47,13 +47,14 @@ export type Category = {
 export type Offering = {
   providerServiceId: string;
   id: string;
+  catalogServiceId: string | null;
   name: string;
-  slug: string;
+  slug: string | null;
   price: number;
   description: string;
   durationMinutes: number;
   category: string;
-  categorySlug: string;
+  categorySlug: string | null;
 };
 
 export type ProviderCard = {

@@ -1,5 +1,5 @@
+const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 const config = require('../config/config');
 const { User } = require('../models');
 const { sendPasswordReset, sendEmailVerification } = require('../services/emailService');
@@ -49,9 +49,20 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, identifier, password } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+    // Callers may send email, phone, or a single identifier field holding either.
+    const loginId = identifier ?? email ?? phone;
+
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          ...(String(loginId).includes('@') ? [{ email: String(loginId).toLowerCase() }] : []),
+          ...(String(loginId).includes('@') ? [] : [{ phone: loginId }]),
+        ],
+      },
+    });
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
@@ -162,32 +173,49 @@ exports.changePassword = async (req, res) => {
 };
 
 /**
- * Request a password reset. Emails a reset token (expiring in 1 hour).
+ * Request a password reset.
+ *
+ * People sign in with a phone number here, so a reset starts from the one they
+ * typed. Email still works, and both paths store a short code that expires in an
+ * hour. Outside production the code comes back in the response so the flow can
+ * be tested without an inbox.
  */
 exports.forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
-    const user = await User.findOne({ where: { email } });
+    const { email, phone, identifier } = req.body;
 
-    // Always return success to avoid revealing which emails exist.
-    if (!user) {
-      return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    const loginId = identifier ?? email ?? phone;
+    if (!loginId) {
+      return res.status(400).json({ message: 'Enter your email or phone number.' });
     }
 
-    const resetToken = uuidv4();
+    const user = await User.findOne({
+      where: {
+        [Op.or]: String(loginId).includes('@')
+          ? [{ email: String(loginId).toLowerCase() }]
+          : [{ phone: loginId }],
+      },
+    });
+
+    // Always return success to avoid revealing which accounts exist.
+    if (!user) {
+      return res.json({ message: 'If that account exists, a reset code is on its way.' });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+
     await user.update({
-      reset_token: resetToken,
+      reset_token: code,
       reset_token_expires: new Date(Date.now() + 60 * 60 * 1000),
     });
 
-    await sendPasswordReset(user.email, resetToken);
+    await sendPasswordReset(user.email, code);
 
-    // Development convenience: let the mobile demo prefill the reset code.
     const devMode = config.nodeEnv !== 'production';
 
     return res.json({
-      message: 'If that email exists, a reset link has been sent.',
-      ...(devMode && resetToken ? { resetToken } : {}),
+      message: 'If that account exists, a reset code is on its way.',
+      ...(devMode ? { resetCode: code } : {}),
     });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to request password reset.', error: error.message });
@@ -199,19 +227,22 @@ exports.forgotPassword = async (req, res) => {
  */
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
-    if (!token || !newPassword) {
-      return res.status(400).json({ message: 'token and newPassword are required.' });
+    const { token, code, newPassword, password } = req.body;
+    const supplied = token ?? code;
+    const nextPassword = newPassword ?? password;
+
+    if (!supplied || !nextPassword) {
+      return res.status(400).json({ message: 'Enter the reset code and your new password.' });
     }
 
     const user = await User.findOne({
       where: {
-        reset_token: token,
-        reset_token_expires: { [require('sequelize').Op.gt]: new Date() },
+        reset_token: String(supplied),
+        reset_token_expires: { [Op.gt]: new Date() },
       },
     });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired reset token.' });
+      return res.status(400).json({ message: 'That reset code is invalid or has expired.' });
     }
 
     user.password_hash = newPassword;

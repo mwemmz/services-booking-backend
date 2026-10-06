@@ -1,11 +1,14 @@
 import { route, ok } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
-import { getBookingForUser } from "@/lib/booking";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route(async (_req, ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  return ok(await getBookingForUser(id, user.id));
+  const token = await getAccessToken();
+  const res = await apiFetch(`/bookings/${id}`, { token });
+  return ok(res);
 });

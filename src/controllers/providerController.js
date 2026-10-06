@@ -23,6 +23,8 @@ exports.registerAsProvider = async (req, res) => {
       business_name: req.body.business_name,
       description: req.body.description,
       category: req.body.category,
+      service_area: req.body.service_area,
+      address: req.body.address,
       location_lat: req.body.location_lat,
       location_lng: req.body.location_lng,
       service_radius: req.body.service_radius,
@@ -97,7 +99,17 @@ exports.updateProvider = async (req, res) => {
       return res.status(404).json({ message: 'Provider profile not found.' });
     }
 
-    const allowedFields = ['business_name', 'description', 'category', 'location_lat', 'location_lng', 'service_radius', 'working_hours'];
+    const allowedFields = [
+      'business_name',
+      'description',
+      'category',
+      'service_area',
+      'address',
+      'location_lat',
+      'location_lng',
+      'service_radius',
+      'working_hours',
+    ];
     const updates = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {

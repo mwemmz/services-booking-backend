@@ -1,28 +1,29 @@
 import { z } from "zod";
 import { route, ok, readJson, HttpError } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
-import { listFavorites, toggleFavorite } from "@/lib/account";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export const GET = route(async (req) => {
+export const GET = route(async () => {
   const user = await requireUser("CUSTOMER");
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
-  const url = new URL(req.url);
-  const lat = Number(url.searchParams.get("lat"));
-  const lng = Number(url.searchParams.get("lng"));
-  return ok(
-    await listFavorites(user.customerProfile.id, {
-      lat: Number.isFinite(lat) ? lat : undefined,
-      lng: Number.isFinite(lng) ? lng : undefined,
-    }),
-  );
+  const token = await getAccessToken();
+  const res = await apiFetch<any>("/favourites", { token });
+  return ok(res?.favourites ?? res ?? []);
 });
 
 export const POST = route(async (req) => {
   const user = await requireUser("CUSTOMER");
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
   const body = z.object({ providerId: z.string() }).parse(await readJson(req));
-  const favorite = await toggleFavorite(user.customerProfile.id, body.providerId);
-  return ok({ favorite });
+  const token = await getAccessToken();
+  try {
+    const res = await apiFetch("/favourites", { method: "POST", body: { provider_id: body.providerId }, token });
+    return ok(res);
+  } catch (e: any) {
+    if (e?.status === 404) throw new HttpError("Provider not found.", 404);
+    throw e;
+  }
 });

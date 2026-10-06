@@ -1,1 +1,1 @@
-export * from "@/application/provider-admin";
+export {};

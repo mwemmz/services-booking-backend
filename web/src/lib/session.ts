@@ -66,6 +66,7 @@ export type ApiUser = {
   profile_image?: string | null;
   is_active?: boolean;
   is_verified?: boolean;
+  fullName?: string;
 };
 
 /**
@@ -105,6 +106,7 @@ export async function requireUser(role?: Role): Promise<SessionUser> {
 
   return {
     ...user,
+    fullName: user.fullName ?? user.name,
     customerProfile: { id: user.id },
     providerProfile,
   };

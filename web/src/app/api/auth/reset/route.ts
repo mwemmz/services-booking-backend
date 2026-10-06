@@ -1,20 +1,21 @@
 import { z } from "zod";
-import { route, ok, readJson, HttpError } from "@/lib/http";
-import { normalizePhone } from "@/lib/phone";
-import { resetPasswordWithCode } from "@/application/account";
+import { route, ok, readJson } from "@/lib/http";
+import { apiFetch } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
+const schema = z.object({
+  code: z.string().trim().min(4, "Enter the reset code."),
+  password: z.string().min(6, "Use at least 6 characters."),
+});
+
 export const POST = route(async (req) => {
-  const body = z
-    .object({
-      phone: z.string(),
-      code: z.string().min(4, "Enter the reset code."),
-      password: z.string().min(6, "Use at least 6 characters."),
-    })
-    .parse(await readJson(req));
-  const phone = normalizePhone(body.phone);
-  if (!phone) throw new HttpError("Enter a valid Zambian phone number.", 400);
-  await resetPasswordWithCode(phone, body.code, body.password);
-  return ok({ message: "Password updated. You can log in now." });
+  const body = schema.parse(await readJson(req));
+
+  const res = await apiFetch<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: { code: body.code, password: body.password },
+  });
+
+  return ok({ message: res.message });
 });

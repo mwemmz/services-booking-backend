@@ -70,6 +70,8 @@ Booking.hasOne(Review, { foreignKey: 'booking_id', as: 'review' });
 Review.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
 Review.belongsTo(User, { foreignKey: 'customer_id', as: 'customer' });
 Review.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
+// Reviews shown on a provider's storefront page.
+Provider.hasMany(Review, { foreignKey: 'provider_id', as: 'reviews' });
 
 User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });

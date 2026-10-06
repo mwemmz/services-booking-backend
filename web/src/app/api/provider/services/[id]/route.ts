@@ -1,31 +1,35 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { route, ok, readJson, HttpError } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
-import { providerServices, removeProviderService, updateProviderService } from "@/lib/provider-admin";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export const PATCH = route(async (req, ctx) => {
+export const GET = route(async (_req, ctx) => {
   const user = await requireUser("PROVIDER");
-  const { id } = await ctx.params;
-  const body = z
-    .object({
-      price: z.number().int().optional(),
-      description: z.string().optional(),
-      durationMinutes: z.number().int().optional(),
-      isActive: z.boolean().optional(),
-      imageUrl: z.string().max(200).optional().nullable(),
-    })
-    .parse(await readJson(req));
   if (!user.providerProfile) throw new HttpError("You do not have access to this.", 403);
-  await updateProviderService(user.providerProfile.id, id, body);
-  return ok(await providerServices(user.providerProfile.id));
+  const { id } = await ctx.params;
+  const token = await getAccessToken();
+  const res = await apiFetch(`/services/${id}`, { token });
+  return ok(res);
+});
+
+export const PUT = route(async (req, ctx) => {
+  const user = await requireUser("PROVIDER");
+  if (!user.providerProfile) throw new HttpError("You do not have access to this.", 403);
+  const { id } = await ctx.params;
+  const body = z.object({ name: z.string().min(2), price: z.number().positive(), description: z.string().optional(), categoryId: z.string().optional(), catalog_service_id: z.string().uuid().optional().nullable(), is_active: z.boolean().optional() }).parse(await readJson(req));
+  const token = await getAccessToken();
+  const res = await apiFetch(`/services/${id}`, { method: "PUT", body, token });
+  return ok(res);
 });
 
 export const DELETE = route(async (_req, ctx) => {
   const user = await requireUser("PROVIDER");
-  const { id } = await ctx.params;
   if (!user.providerProfile) throw new HttpError("You do not have access to this.", 403);
-  const result = await removeProviderService(user.providerProfile.id, id);
-  return ok({ ...result, services: await providerServices(user.providerProfile.id) });
+  const { id } = await ctx.params;
+  const token = await getAccessToken();
+  await apiFetch(`/services/${id}`, { method: "DELETE", token });
+  return ok({ ok: true });
 });

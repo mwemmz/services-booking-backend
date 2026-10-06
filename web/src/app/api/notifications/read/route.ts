@@ -1,13 +1,13 @@
-import { z } from "zod";
-import { route, ok, readJson } from "@/lib/http";
+import { route, ok } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
-import { markNotifications } from "@/lib/inbox";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export const POST = route(async (req) => {
-  const user = await requireUser();
-  const body = z.object({ id: z.string().optional() }).parse(await readJson(req));
-  await markNotifications(user.id, body.id);
+export const POST = route(async () => {
+  await requireUser();
+  const token = await getAccessToken();
+  await apiFetch("/notifications/read", { method: "PUT", token, body: {} });
   return ok({ ok: true });
 });

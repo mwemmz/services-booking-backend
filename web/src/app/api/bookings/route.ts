@@ -1,13 +1,16 @@
 import { z } from "zod";
 import { route, ok, readJson, HttpError } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
-import { createBooking, listBookings } from "@/lib/booking";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route(async () => {
   const user = await requireUser();
-  return ok(await listBookings(user));
+  const token = await getAccessToken();
+  const res = await apiFetch("/bookings", { token });
+  return ok(res);
 });
 
 export const POST = route(async (req) => {
@@ -28,5 +31,7 @@ export const POST = route(async (req) => {
     })
     .parse(await readJson(req));
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
-  return ok(await createBooking(user, body), 201);
+  const token = await getAccessToken();
+  const res = await apiFetch("/bookings", { method: "POST", body, token });
+  return ok(res, 201);
 });

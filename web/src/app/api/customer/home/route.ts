@@ -10,9 +10,9 @@ export const GET = route(async (req) => {
   const lat = Number(url.searchParams.get("lat"));
   const lng = Number(url.searchParams.get("lng"));
   return ok(
-    await customerHome(
-      { lat: Number.isFinite(lat) ? lat : undefined, lng: Number.isFinite(lng) ? lng : undefined },
-      user.customerProfile?.id,
-    ),
+    await customerHome({
+      lat: Number.isFinite(lat) ? lat : undefined,
+      lng: Number.isFinite(lng) ? lng : undefined,
+    }),
   );
 });

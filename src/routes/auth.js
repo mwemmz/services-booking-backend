@@ -19,14 +19,16 @@ const {
   loginRules,
   updateProfileRules,
   changePasswordRules,
+  forgotPasswordRules,
+  resetPasswordRules,
 } = require('../validations/authValidation');
 
 router.post('/register', [...registerRules, validate], register);
 router.post('/login', [...loginRules, validate], login);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', authenticate, logout);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+router.post('/forgot-password', [...forgotPasswordRules, validate], forgotPassword);
+router.post('/reset-password', [...resetPasswordRules, validate], resetPassword);
 router.post('/verify-email', verifyEmail);
 router.post('/resend-verification', authenticate, resendVerification);
 router.get('/me', authenticate, getMe);

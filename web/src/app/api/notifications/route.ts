@@ -1,10 +1,13 @@
 import { route, ok } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
-import { listNotifications } from "@/lib/inbox";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route(async () => {
-  const user = await requireUser();
-  return ok(await listNotifications(user.id));
+  await requireUser();
+  const token = await getAccessToken();
+  const res = await apiFetch<any>("/notifications", { token });
+  return ok(res?.notifications ?? res ?? []);
 });

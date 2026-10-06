@@ -43,14 +43,15 @@ const sendBookingConfirmation = async (to, bookingDetails) => {
   await sendEmail(to, 'Booking Confirmation', html);
 };
 
-const sendPasswordReset = async (to, resetToken) => {
-  const resetLink = `${config.frontendUrl}/reset-password?token=${resetToken}`;
+const sendPasswordReset = async (to, resetCode) => {
+  const resetLink = `${config.frontendUrl}/reset-password?code=${resetCode}`;
 
   const html = `
     <h2>Password Reset Request</h2>
-    <p>You requested a password reset. Click the link below to set a new password:</p>
-    <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; margin: 16px 0;">Reset Password</a>
-    <p style="color: #666;">This link expires in 1 hour.</p>
+    <p>You asked to reset your password. Use this code in the app:</p>
+    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; margin: 16px 0;">${resetCode}</p>
+    <p><a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
+    <p style="color: #666;">This code expires in 1 hour.</p>
     <p style="color: #666;">If you did not request this, please ignore this email.</p>
   `;
 

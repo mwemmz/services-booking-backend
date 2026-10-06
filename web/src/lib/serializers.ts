@@ -1,201 +1,250 @@
-import type { Prisma } from "@prisma/client";
-import { haversineKm } from "./format";
+﻿import { haversineKm } from "./format";
 import { customerCanSeeProviderPhone } from "./statuses";
 
-const providerInclude = {
-  user: { select: { fullName: true, avatarUrl: true, phone: true } },
-  services: {
-    where: { isActive: true },
-    include: { service: { include: { category: true } } },
-    orderBy: { price: "asc" as const },
-  },
-} satisfies Prisma.ProviderProfileInclude;
+const toIso = (value: string | Date | null | undefined) => (value ? new Date(value).toISOString() : null);
 
-export const providerListInclude = providerInclude;
+// API provider/service shapes
+type ApiProviderService = {
+  providerServiceId: string;
+  id: string;
+  catalogServiceId?: string | null;
+  name: string;
+  slug?: string | null;
+  price: number;
+  description?: string;
+  durationMinutes: number;
+  category: string;
+  categorySlug?: string | null;
+};
 
-export const providerDetailInclude = {
-  ...providerInclude,
-  services: {
-    where: { isActive: true },
-    include: { service: { include: { category: true } } },
-    orderBy: { price: "asc" as const },
-  },
-  availability: { orderBy: { dayOfWeek: "asc" as const } },
-  portfolio: { orderBy: { createdAt: "desc" as const } },
-  reviews: {
-    include: { author: { select: { fullName: true, avatarUrl: true } } },
-    orderBy: { createdAt: "desc" as const },
-    take: 20,
-  },
-} satisfies Prisma.ProviderProfileInclude;
-
-export const bookingInclude = {
-  service: { include: { category: true } },
-  providerService: true,
-  provider: { include: { user: { select: { fullName: true, avatarUrl: true, phone: true } } } },
-  customer: { include: { user: { select: { fullName: true, avatarUrl: true, phone: true } } } },
-  review: true,
-  statusHistory: { orderBy: { createdAt: "asc" as const } },
-  transaction: true,
-} satisfies Prisma.BookingInclude;
-
-type ProviderRow = Prisma.ProviderProfileGetPayload<{ include: typeof providerDetailInclude }>;
+type ApiProviderCard = {
+  id: string;
+  name: string;
+  personName: string;
+  avatarUrl?: string | null;
+  verified?: boolean;
+  verificationStatus?: string;
+  rating?: number;
+  reviewCount?: number;
+  bio?: string;
+  serviceArea?: string | null;
+  baseAddress?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceKm?: number | null;
+  minPrice?: number | null;
+  services?: ApiProviderService[];
+  favorite?: boolean;
+};
 
 export function toProviderCard(
-  provider: Prisma.ProviderProfileGetPayload<{ include: typeof providerListInclude }>,
-  coords?: { lat?: number; lng?: number },
+  provider: ApiProviderCard,
+  _coords?: { lat?: number; lng?: number },
   favorite?: boolean,
 ) {
-  const services = provider.services.map((item) => ({
-    providerServiceId: item.id,
-    id: item.serviceId,
-    name: item.service.name,
-    slug: item.service.slug,
-    price: item.price,
-    description: item.description,
-    durationMinutes: item.durationMinutes,
-    category: item.service.category.name,
-    categorySlug: item.service.category.slug,
+  const services = (provider.services ?? []).map((item) => ({
+    providerServiceId: item.providerServiceId,
+    id: item.id,
+    catalogServiceId: item.catalogServiceId ?? null,
+    name: item.name,
+    slug: item.slug ?? "",
+    price: Number(item.price),
+    description: item.description ?? "",
+    durationMinutes: Number(item.durationMinutes),
+    category: item.category,
+    categorySlug: item.categorySlug ?? "",
   }));
-  const distance =
-    coords?.lat != null && coords?.lng != null && provider.latitude != null && provider.longitude != null
-      ? Math.round(haversineKm(coords.lat, coords.lng, provider.latitude, provider.longitude) * 10) / 10
-      : null;
+  const minPrice = provider.minPrice ?? (services.length ? Math.min(...services.map((s) => s.price)) : null);
   return {
     id: provider.id,
-    name: provider.businessName || provider.user.fullName,
-    personName: provider.user.fullName,
-    avatarUrl: provider.user.avatarUrl,
-    verified: provider.verificationStatus === "VERIFIED",
-    verificationStatus: provider.verificationStatus,
-    rating: provider.ratingAvg,
-    reviewCount: provider.reviewCount,
-    bio: provider.bio,
-    serviceArea: provider.serviceArea,
-    baseAddress: provider.baseAddress,
-    latitude: provider.latitude,
-    longitude: provider.longitude,
-    distanceKm: distance,
-    minPrice: services.length ? Math.min(...services.map((service) => service.price)) : null,
+    name: provider.name || provider.personName,
+    personName: provider.personName,
+    avatarUrl: provider.avatarUrl ?? null,
+    verified: Boolean(provider.verified),
+    verificationStatus: provider.verificationStatus ?? (provider.verified ? "VERIFIED" : "PENDING"),
+    rating: provider.rating ?? 0,
+    reviewCount: provider.reviewCount ?? 0,
+    bio: provider.bio ?? "",
+    serviceArea: provider.serviceArea ?? "",
+    baseAddress: provider.baseAddress ?? null,
+    latitude: provider.latitude ?? null,
+    longitude: provider.longitude ?? null,
+    distanceKm: provider.distanceKm ?? null,
+    minPrice,
     services,
-    favorite: Boolean(favorite),
+    favorite: Boolean(favorite ?? provider.favorite),
   };
 }
 
-export function toProviderDetail(provider: ProviderRow, coords?: { lat?: number; lng?: number }, favorite?: boolean) {
+export function toProviderDetail(
+  provider: ApiProviderCard & {
+    availability?: Array<{ dayOfWeek: number; startTime: string; endTime: string; isActive: boolean }>;
+    portfolio?: Array<{ id: string; imageUrl: string; caption: string | null }>;
+    reviews?: Array<{
+      id: string;
+      rating: number;
+      reason?: string | null;
+      comment?: string | null;
+      authorName: string;
+      authorAvatar?: string | null;
+      createdAt: string;
+    }>;
+  },
+  coords?: { lat?: number; lng?: number },
+  favorite?: boolean,
+) {
+  const card = toProviderCard(provider, coords, favorite);
   return {
-    ...toProviderCard(provider, coords, favorite),
-    availability: provider.availability.map((slot) => ({
+    ...card,
+    availability: (provider.availability ?? []).map((slot) => ({
       dayOfWeek: slot.dayOfWeek,
       startTime: slot.startTime,
       endTime: slot.endTime,
       isActive: slot.isActive,
     })),
-    portfolio: provider.portfolio.map((photo) => ({
+    portfolio: (provider.portfolio ?? []).map((photo) => ({
       id: photo.id,
       imageUrl: photo.imageUrl,
-      caption: photo.caption,
+      caption: photo.caption ?? null,
     })),
-    reviews: provider.reviews.map((review) => ({
+    reviews: (provider.reviews ?? []).map((review) => ({
       id: review.id,
       rating: review.rating,
-      reason: review.reason,
-      comment: review.comment,
-      authorName: review.author.fullName,
-      authorAvatar: review.author.avatarUrl,
-      createdAt: review.createdAt.toISOString(),
+      reason: review.reason ?? "",
+      comment: review.comment ?? "",
+      authorName: review.authorName,
+      authorAvatar: review.authorAvatar ?? null,
+      createdAt: review.createdAt,
     })),
   };
 }
 
-export function toBooking(
-  booking: Prisma.BookingGetPayload<{ include: typeof bookingInclude }>,
-  viewer: "CUSTOMER" | "PROVIDER",
-) {
+type ApiBooking = {
+  id: string;
+  status: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  addressLine: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  notes?: string | null;
+  paymentMethod?: string | null;
+  price: number;
+  quotedPrice?: number | null;
+  cancelledBy?: string | null;
+  cancellationReason?: string | null;
+  cancelledAt?: string | null;
+  providerLat?: number | null;
+  providerLng?: number | null;
+  providerLocationAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  durationMinutes?: number;
+  service: { id: string; name: string; slug?: string | null; category: string; categorySlug?: string | null };
+  provider: {
+    id: string;
+    name: string;
+    personName: string;
+    avatarUrl?: string | null;
+    verified?: boolean;
+    rating?: number;
+    phone?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  customer: { id: string; name: string; avatarUrl?: string | null; phone?: string | null };
+  review?: { id: string; rating: number; reason?: string | null; comment?: string | null; createdAt: string } | null;
+  history?: Array<{ status: string; note?: string | null; createdAt: string }>;
+};
+
+export function toBooking(booking: ApiBooking, viewer: "CUSTOMER" | "PROVIDER") {
   return {
     id: booking.id,
     status: booking.status,
     scheduledDate: booking.scheduledDate,
     scheduledTime: booking.scheduledTime,
     addressLine: booking.addressLine,
-    latitude: booking.latitude,
-    longitude: booking.longitude,
-    notes: booking.notes,
-    paymentMethod: booking.paymentMethod,
-    price: booking.price,
-    quotedPrice: booking.quotedPrice,
-    cancelledBy: booking.cancelledBy,
-    cancellationReason: booking.cancellationReason,
-    cancelledAt: booking.cancelledAt?.toISOString() ?? null,
-    providerLat: booking.providerLat,
-    providerLng: booking.providerLng,
-    providerLocationAt: booking.providerLocationAt?.toISOString() ?? null,
-    completedAt: booking.completedAt?.toISOString() ?? null,
-    createdAt: booking.createdAt.toISOString(),
-    durationMinutes: booking.providerService?.durationMinutes ?? 60,
+    latitude: booking.latitude ?? null,
+    longitude: booking.longitude ?? null,
+    notes: booking.notes ?? "",
+    paymentMethod: booking.paymentMethod ?? null,
+    price: Number(booking.price),
+    quotedPrice: booking.quotedPrice === undefined || booking.quotedPrice === null ? null : Number(booking.quotedPrice),
+    cancelledBy: booking.cancelledBy ?? null,
+    cancellationReason: booking.cancellationReason ?? null,
+    cancelledAt: toIso(booking.cancelledAt),
+    providerLat: booking.providerLat ?? null,
+    providerLng: booking.providerLng ?? null,
+    providerLocationAt: toIso(booking.providerLocationAt),
+    completedAt: toIso(booking.completedAt),
+    createdAt: booking.createdAt,
+    durationMinutes: booking.durationMinutes ?? 60,
     service: {
       id: booking.service.id,
       name: booking.service.name,
-      slug: booking.service.slug,
-      category: booking.service.category.name,
-      categorySlug: booking.service.category.slug,
+      slug: booking.service.slug ?? "",
+      category: booking.service.category,
+      categorySlug: booking.service.categorySlug ?? "",
     },
     provider: {
       id: booking.provider.id,
-      name: booking.provider.businessName || booking.provider.user.fullName,
-      personName: booking.provider.user.fullName,
-      avatarUrl: booking.provider.user.avatarUrl,
-      verified: booking.provider.verificationStatus === "VERIFIED",
-      rating: booking.provider.ratingAvg,
-      phone: viewer === "CUSTOMER" && customerCanSeeProviderPhone(booking.status) ? booking.provider.user.phone : null,
-      latitude: booking.provider.latitude,
-      longitude: booking.provider.longitude,
+      name: booking.provider.name,
+      personName: booking.provider.personName,
+      avatarUrl: booking.provider.avatarUrl ?? null,
+      verified: Boolean(booking.provider.verified),
+      rating: booking.provider.rating ?? 0,
+      phone: viewer === "CUSTOMER" && customerCanSeeProviderPhone(booking.status) ? booking.provider.phone ?? null : null,
+      latitude: booking.provider.latitude ?? null,
+      longitude: booking.provider.longitude ?? null,
     },
     customer: {
       id: booking.customer.id,
-      name: booking.customer.user.fullName,
-      avatarUrl: booking.customer.user.avatarUrl,
-      phone: viewer === "PROVIDER" ? booking.customer.user.phone : null,
+      name: booking.customer.name,
+      avatarUrl: booking.customer.avatarUrl ?? null,
+      phone: viewer === "PROVIDER" ? booking.customer.phone ?? null : null,
     },
     review: booking.review
       ? {
           id: booking.review.id,
           rating: booking.review.rating,
-          reason: booking.review.reason,
-          comment: booking.review.comment,
-          createdAt: booking.review.createdAt.toISOString(),
+          reason: booking.review.reason ?? "",
+          comment: booking.review.comment ?? "",
+          createdAt: booking.review.createdAt,
         }
       : null,
-    history: booking.statusHistory.map((entry) => ({
+    history: (booking.history ?? []).map((entry) => ({
       status: entry.status,
-      note: entry.note,
-      createdAt: entry.createdAt.toISOString(),
+      note: entry.note ?? null,
+      createdAt: entry.createdAt,
     })),
   };
 }
 
-export function toMe(user: {
-  id: string;
-  role: string;
-  fullName: string;
-  phone: string;
-  avatarUrl: string | null;
-  customerProfile: { id: string } | null;
-  providerProfile: {
+export function toMe(
+  user: {
     id: string;
-    businessName: string;
-    bio: string;
-    verificationStatus: string;
-    serviceArea: string;
-    baseAddress: string | null;
-    ratingAvg: number;
-    reviewCount: number;
-    latitude: number | null;
-    longitude: number | null;
-    idDocumentUrl: string | null;
-    acceptingJobs: boolean;
-  } | null;
-}, counts: { unreadNotifications: number; unreadMessages: number }) {
+    role: string;
+    fullName: string;
+    phone: string;
+    avatarUrl: string | null;
+    customerProfile: { id: string } | null;
+    providerProfile: {
+      id: string;
+      businessName: string;
+      bio: string;
+      verificationStatus: string;
+      serviceArea: string;
+      baseAddress: string | null;
+      rating: number;
+      reviewCount: number;
+      latitude: number | null;
+      longitude: number | null;
+      idDocumentUrl: string | null;
+      acceptingJobs: boolean;
+    } | null;
+  },
+  counts: { unreadNotifications: number; unreadMessages: number },
+) {
   return {
     id: user.id,
     role: user.role,
@@ -211,7 +260,7 @@ export function toMe(user: {
           verificationStatus: user.providerProfile.verificationStatus,
           serviceArea: user.providerProfile.serviceArea,
           baseAddress: user.providerProfile.baseAddress,
-          rating: user.providerProfile.ratingAvg,
+          rating: user.providerProfile.rating,
           reviewCount: user.providerProfile.reviewCount,
           latitude: user.providerProfile.latitude,
           longitude: user.providerProfile.longitude,
@@ -219,6 +268,12 @@ export function toMe(user: {
           acceptingJobs: user.providerProfile.acceptingJobs,
         }
       : null,
-    ...counts,
+    unreadNotifications: counts.unreadNotifications,
+    unreadMessages: counts.unreadMessages,
   };
 }
+
+// Placeholder includes for compatibility (no Prisma used now)
+export const providerListInclude: never = {} as never;
+export const providerDetailInclude: never = {} as never;
+export const bookingInclude: never = {} as never;

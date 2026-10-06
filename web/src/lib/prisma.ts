@@ -1,1 +1,1 @@
-export { prisma } from "@/data/prisma";
+export {};

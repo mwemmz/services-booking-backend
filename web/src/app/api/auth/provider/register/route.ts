@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { route, ok, readJson, HttpError } from "@/lib/http";
 import { normalizePhone } from "@/lib/phone";
-import { registerProvider } from "@/lib/account";
-import { setSession } from "@/lib/auth";
+import { registerProvider } from "@/lib/auth";
 import { emailAddress } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
@@ -40,13 +39,37 @@ const schema = z.object({
 export const POST = route(async (req) => {
   const body = schema.parse(await readJson(req));
   if (body.password !== body.confirmPassword) throw new HttpError("Passwords do not match.", 400);
+
   const born = new Date(`${body.dateOfBirth}T00:00:00`);
   const adult = new Date();
   adult.setFullYear(adult.getFullYear() - 18);
   if (Number.isNaN(born.getTime()) || born > adult) throw new HttpError("You need to be 18 or older.", 400);
+
   const phone = normalizePhone(body.phone);
   if (!phone) throw new HttpError("Enter a valid Zambian phone number.", 400);
-  const user = await registerProvider({ ...body, phone });
-  await setSession(user.id, "PROVIDER");
+
+  await registerProvider({
+    name: body.fullName,
+    email: body.email,
+    phone,
+    password: body.password,
+    businessName: body.businessName,
+    bio: body.bio,
+    serviceArea: body.serviceArea,
+    baseAddress: body.baseAddress,
+    latitude: body.latitude,
+    longitude: body.longitude,
+    idDocumentUrl: body.idDocumentUrl,
+    services: body.services.map((entry) => {
+      const name = entry.newServiceName ?? entry.serviceId ?? "Service";
+      return {
+        catalogServiceId: entry.serviceId,
+        name,
+        price: entry.price,
+        durationMinutes: entry.durationMinutes ?? 60,
+      };
+    }),
+  });
+
   return ok({ ok: true }, 201);
 });

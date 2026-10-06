@@ -16,7 +16,6 @@ export const GET = route(async (req) => {
       category: url.searchParams.get("category") ?? undefined,
       lat: Number.isFinite(lat) ? lat : undefined,
       lng: Number.isFinite(lng) ? lng : undefined,
-      customerId: user.customerProfile?.id,
     }),
   );
 });

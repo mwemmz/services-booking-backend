@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/app-header";
+import { SocketProvider } from "@/contexts/socket-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,12 +17,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             __html: "try{if(localStorage.getItem('zam-theme')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}",
           }}
         />
-        <div className="app-stage">
-          <div className="app-frame flex flex-col">
-            <AppHeader />
-            <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+        <SocketProvider>
+          <div className="app-stage">
+            <div className="app-frame flex flex-col">
+              <AppHeader />
+              <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+            </div>
           </div>
-        </div>
+        </SocketProvider>
       </body>
     </html>
   );

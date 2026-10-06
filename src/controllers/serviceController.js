@@ -17,6 +17,8 @@ exports.createService = async (req, res) => {
       duration: req.body.duration,
       category: req.body.category,
       image: req.body.image,
+      // Optional: ties this priced offering to a seeded catalogue entry.
+      catalog_service_id: req.body.catalog_service_id ?? null,
     });
 
     return res.status(201).json({ message: 'Service created.', service });

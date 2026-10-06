@@ -9,10 +9,11 @@ export const GET = route(async (req) => {
   const url = new URL(req.url);
   const lat = Number(url.searchParams.get("lat"));
   const lng = Number(url.searchParams.get("lng"));
+  const q = url.searchParams.get("q") ?? "";
   return ok(
-    await searchAll(url.searchParams.get("q") ?? "", {
+    await searchAll(q, {
       lat: Number.isFinite(lat) ? lat : undefined,
       lng: Number.isFinite(lng) ? lng : undefined,
-    }, user.customerProfile?.id),
+    }),
   );
 });

@@ -1,4 +1,4 @@
-import { route, ok } from "@/lib/http";
+﻿import { route, ok } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
 import { getProvider } from "@/lib/catalog";
 
@@ -6,7 +6,9 @@ export const dynamic = "force-dynamic";
 
 export const GET = route(async (req, ctx) => {
   const user = await requireUser("CUSTOMER");
-  const { id } = await ctx.params;
+  const rawParams = ctx.params;
+  const params = (rawParams instanceof Promise ? await rawParams : rawParams) as Record<string, string | undefined>;
+  const id = String(params?.id ?? "");
   const url = new URL(req.url);
   const lat = Number(url.searchParams.get("lat"));
   const lng = Number(url.searchParams.get("lng"));
@@ -14,6 +16,6 @@ export const GET = route(async (req, ctx) => {
     await getProvider(id, {
       lat: Number.isFinite(lat) ? lat : undefined,
       lng: Number.isFinite(lng) ? lng : undefined,
-    }, user.customerProfile?.id),
+    }),
   );
 });

@@ -1,1 +1,1 @@
-export * from "@/application/account";
+export {};

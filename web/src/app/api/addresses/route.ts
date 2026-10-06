@@ -1,14 +1,17 @@
 import { z } from "zod";
 import { route, ok, readJson, HttpError } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
-import { createAddress, listAddresses } from "@/lib/account";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route(async () => {
   const user = await requireUser("CUSTOMER");
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
-  return ok(await listAddresses(user.customerProfile.id));
+  const token = await getAccessToken();
+  const res = await apiFetch<{ addresses: unknown[] }>("/addresses", { token });
+  return ok(res.addresses ?? []);
 });
 
 export const POST = route(async (req) => {
@@ -22,5 +25,7 @@ export const POST = route(async (req) => {
       longitude: z.number().optional().nullable(),
     })
     .parse(await readJson(req));
-  return ok(await createAddress(user.customerProfile.id, body), 201);
+  const token = await getAccessToken();
+  const res = await apiFetch("/addresses", { method: "POST", body, token });
+  return ok(res, 201);
 });
