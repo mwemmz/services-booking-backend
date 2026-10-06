@@ -5,16 +5,33 @@ const config = require('./config');
 
 let io;
 
-const initSocket = (server) => {
+/** Mirrors TOKEN_COOKIE in web/src/lib/cookieNames.ts (same host, httpOnly). */
+const WEB_TOKEN_COOKIE = 'zam_token';
+
+const parseCookies = (header) => {
+  const cookies = {};
+  for (const part of header.split(';')) {
+    const index = part.indexOf('=');
+    if (index === -1) continue;
+    cookies[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
+  }
+  return cookies;
+};
+
+const initSocket = (server, options = {}) => {
   io = new Server(server, {
     cors: {
       origin: '*',
       methods: ['GET', 'POST'],
+      ...options.cors,
     },
   });
 
   io.use((socket, next) => {
-    const token = socket.handshake.auth.token;
+    // Mobile sends the token in the handshake; the web app on the combined
+    // host can only offer the httpOnly cookie, which rides along same-origin.
+    const cookies = parseCookies(socket.handshake.headers.cookie || '');
+    const token = socket.handshake.auth?.token || cookies[WEB_TOKEN_COOKIE];
     if (!token) {
       return next(new Error('Authentication error'));
     }

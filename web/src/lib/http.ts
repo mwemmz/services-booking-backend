@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { ApiError } from "@/lib/api";
 
 export class HttpError extends Error {
   status: number;
@@ -25,6 +26,11 @@ export function route(handler: Handler) {
       return await handler(req, ctx);
     } catch (error) {
       if (error instanceof HttpError) return fail(error.message, error.status);
+      // The API's own answer (wrong password, expired token, not found...) -
+      // pass it through instead of masking it as a crash.
+      if (error instanceof ApiError) {
+        return fail(error.message, error.status >= 200 && error.status <= 599 ? error.status : 503);
+      }
       if (error instanceof ZodError) return fail(error.issues[0]?.message || "Please check your details.", 400);
       console.error(error);
       return fail("Something went wrong. Please try again.", 500);

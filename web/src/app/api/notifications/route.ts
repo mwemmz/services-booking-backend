@@ -8,6 +8,6 @@ export const dynamic = "force-dynamic";
 export const GET = route(async () => {
   await requireUser();
   const token = await getAccessToken();
-  const res = await apiFetch<any>("/notifications", { token });
+  const res = (await apiFetch<unknown>("/notifications", { token })) as { notifications?: unknown[] } | undefined;
   return ok(res?.notifications ?? res ?? []);
 });

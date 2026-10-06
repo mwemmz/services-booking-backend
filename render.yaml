@@ -1,15 +1,70 @@
 services:
   - type: web
     name: services-booking-backend
-    env: node
+    runtime: node
+    plan: free
+    region: frankfurt
     branch: master
-    repo: https://github.com/your-repo
     buildCommand: npm install --prefix . && npm install --prefix web && npm run build --prefix web
     startCommand: node server.js
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: CLIENT_URL
-        value: https://servicehub-web-pryn.onrender.com
       - key: PORT
-        value: 3000
+        value: "3000"
+      # Combined host: Express API and the Next web app are one service, so
+      # CORS, Socket.IO and email links all point at this same origin.
+      - key: CLIENT_URL
+        value: https://services-booking-backend-3wbl.onrender.com
+      - key: FRONTEND_URL
+        value: https://services-booking-backend-3wbl.onrender.com
+      # The BFF calls back over loopback inside this same process.
+      - key: API_BASE_URL
+        value: http://localhost:3000/api
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: LOCATION_MAX_ACCURACY
+        value: "50"
+      - key: LOCATION_MIN_INTERVAL
+        value: "3"
+      - key: PAYMENT_API_URL
+        sync: false
+      - key: PAYMENT_API_KEY
+        sync: false
+      - key: PAYMENT_SECRET_KEY
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
