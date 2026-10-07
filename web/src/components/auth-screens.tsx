@@ -8,57 +8,18 @@ import { confirmPassword as passwordsMatch, imageFileProblem, passwordValue, per
 import { Gate, useFormGate } from "./form-gate";
 import { BackLink, Banner, Button, Field, PasswordField, PhoneField, TextInput } from "./ui";
 
-export function LoginScreen({ role }: { role: "CUSTOMER" | "PROVIDER" }) {
+export function LoginScreen({ role }: { role: "CUSTOMER" | "PROVIDER" | "ADMIN" }) {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const home = role === "CUSTOMER" ? "/customer/home" : "/provider/home";
-  const gate = useFormGate([
-    { id: "phone", message: phoneLocal(phone) },
-    { id: "password", message: passwordValue(password) },
-  ]);
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (gate.blockSubmit()) return;
-    setLoading(true);
-    setError("");
-    try {
-      await api(role === "CUSTOMER" ? "/api/auth/customer/login" : "/api/auth/provider/login", {
-        method: "POST",
-        body: JSON.stringify({ phone, password }),
-      });
-      router.replace(home);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="h-full overflow-y-auto px-6 py-8">
-      <BackLink href="/choose-role" />
-      <h1 className="mt-5 font-display text-[2rem] leading-none">{role === "CUSTOMER" ? "Customer Sign In" : "Service Provider Sign In"}</h1>
-      <p className="mt-2 text-sm text-muted">{role === "CUSTOMER" ? "Log in to book a service." : "Log in to manage jobs and requests."}</p>
-      <form onSubmit={submit} className="mt-6 space-y-4">
-        {error && <Banner>{error}</Banner>}
-        <Gate id="phone" gate={gate}><Field label="Phone number" error={gate.error("phone")}><PhoneField value={phone} onChange={setPhone} {...gate.input("phone")} /></Field></Gate>
-        <Gate id="password" gate={gate}><Field label="Password" error={gate.error("password")}><PasswordField value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" {...gate.input("password")} /></Field></Gate>
-        <div className="text-right">
-          <Link href={role === "CUSTOMER" ? "/customer/forgot" : "/provider/forgot"} className="link-blue text-sm font-semibold">Forgot password?</Link>
-        </div>
-        <Button type="submit" loading={loading}>Log In</Button>
-      </form>
-      <p className="mt-6 text-center text-sm text-muted">
-        New here?{" "}
-        <Link href={role === "CUSTOMER" ? "/customer/register" : "/provider/register"} className="link-blue font-semibold">Sign up</Link>
-      </p>
-    </div>
-  );
-}
+  const home = role === "ADMIN" ? "/admin/dashboard" : (role === "CUSTOMER" ? "/customer/home" : "/provider/home");
+  const loginPath = role === "ADMIN" ? "/api/auth/login" : (role === "CUSTOMER" ? "/api/auth/customer/login" : "/api/auth/provider/login");
+  const title = role === "ADMIN" ? "Admin Sign In" : (role === "CUSTOMER" ? "Customer Sign In" : "Service Provider Sign In");
+  const subtitle = role === "ADMIN" ? "Log in to access the admin dashboard." : (role === "CUSTOMER" ? "Log in to book a service." : "Log in to manage jobs and requests.");
+  const forgotHref = role === "ADMIN" ? "/admin/forgot" : (role === "CUSTOMER" ? "/customer/forgot" : "/provider/forgot");
+  const signupHref = role === "ADMIN" ? "/admin/register" : (role === "CUSTOMER" ? "/customer/register" : "/provider/register");
 
 export function CustomerRegister() {
   const router = useRouter();
