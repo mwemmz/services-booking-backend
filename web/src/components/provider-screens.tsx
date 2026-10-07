@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3, Bell, Briefcase, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Coins, LayoutDashboard, LogOut, Menu, MessageCircle, MoreVertical, Navigation, Paintbrush, Plus, Scissors, Settings, Sparkles, Star, UserRound, Wallet, Wrench, X } from "lucide-react";
 import { ApiError, api, uploadImage } from "@/lib/client";
 import { firstName, formatDuration, formatStamp, formatWhen, greeting, kwacha, splitDuration, weekdayName } from "@/lib/format";
@@ -12,6 +12,7 @@ import { NEXT_STATUS, STATUS_LABEL, canShareLocation, providerCanCancel } from "
 import type { Booking, Category } from "@/lib/types";
 import dynamic from "next/dynamic";
 import { useApp } from "./shell";
+import { useSocket } from "@/contexts/socket-context";
 import { ServiceChoices } from "./service-choices";
 import { Gate, useFormGate } from "./form-gate";
 import { Avatar, BackLink, Banner, Button, EmptyState, Field, LoadingBlock, Modal, Screen, Stars, StatusPill, TextInput, Verified } from "./ui";
@@ -77,10 +78,33 @@ export function ProviderHome() {
     setData(next);
   }
 
+  const { socket } = useSocket();
+
+  const refreshDashboard = useCallback(() => {
+    api<Dash>("/api/provider/dashboard").then(setData).catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     load().catch(() => setError("Unable to load your dashboard. Please try again."));
     api<Category[]>("/api/categories").then(setCategories).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on("new-booking", refreshDashboard);
+    socket.on("booking-status-update", refreshDashboard);
+    return () => {
+      socket.off("new-booking", refreshDashboard);
+      socket.off("booking-status-update", refreshDashboard);
+    };
+  }, [socket, refreshDashboard]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") refreshDashboard();
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [refreshDashboard]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setHello(greeting()), 30_000);
