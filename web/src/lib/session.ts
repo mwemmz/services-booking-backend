@@ -47,7 +47,7 @@ export async function getSession(): Promise<Session | null> {
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
   const role = jar.get(ROLE_COOKIE)?.value;
-  if (!token || (role !== "CUSTOMER" && role !== "PROVIDER")) return null;
+  if (!token || (role !== "CUSTOMER" && role !== "PROVIDER" && role !== "ADMIN")) return null;
   return { role, token };
 }
 
@@ -101,6 +101,9 @@ export async function requireUser(role?: Role): Promise<SessionUser> {
 
   const user = await getApiUser(session.token);
   if (!user || user.is_active === false) throw new HttpError("Please log in to continue.", 401);
+  // The role cookie is readable by the Edge middleware, so it cannot be
+  // trusted on its own: the API's own answer decides what this caller may do.
+  if (role && toUiRole(user.role) !== role) throw new HttpError("You do not have access to this.", 403);
 
   const providerProfile = user.role === "provider" ? await getMyProvider(session.token) : null;
 

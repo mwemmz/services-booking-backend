@@ -3,6 +3,7 @@ import { ROLE_COOKIE, TOKEN_COOKIE } from "@/lib/cookieNames";
 
 const customerPublic = new Set(["/customer/start", "/customer/login", "/customer/register", "/customer/forgot"]);
 const providerPublic = new Set(["/provider/start", "/provider/login", "/provider/register", "/provider/forgot"]);
+const adminPublic = new Set(["/admin/login"]);
 
 /**
  * Page gating only. The cookie cannot be verified here (Edge runtime, and the
@@ -14,12 +15,29 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasToken = Boolean(request.cookies.get(TOKEN_COOKIE)?.value);
   const role = request.cookies.get(ROLE_COOKIE)?.value;
-  const signedIn = hasToken && (role === "CUSTOMER" || role === "PROVIDER");
+  const signedIn = hasToken && (role === "CUSTOMER" || role === "PROVIDER" || role === "ADMIN");
   const session = signedIn ? { role } : null;
 
   if (pathname === "/" || pathname === "/choose-role") {
     if (!session) return NextResponse.next();
-    return NextResponse.redirect(new URL(session.role === "PROVIDER" ? "/provider/home" : "/customer/home", request.url));
+    return NextResponse.redirect(
+      new URL(session.role === "ADMIN" ? "/admin/dashboard" : session.role === "PROVIDER" ? "/provider/home" : "/customer/home", request.url),
+    );
+  }
+
+  if (pathname.startsWith("/admin")) {
+    if (adminPublic.has(pathname)) {
+      if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      if (session?.role === "CUSTOMER") return NextResponse.redirect(new URL("/customer/home", request.url));
+      if (session?.role === "PROVIDER") return NextResponse.redirect(new URL("/provider/home", request.url));
+      return NextResponse.next();
+    }
+    if (session?.role !== "ADMIN") return NextResponse.redirect(new URL("/admin/login", request.url));
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/customer") || pathname.startsWith("/provider")) {
+    if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
   if (pathname.startsWith("/customer")) {

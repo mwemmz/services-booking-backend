@@ -4,22 +4,78 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ApiError, api, uploadImage } from "@/lib/client";
-import { confirmPassword as passwordsMatch, imageFileProblem, passwordValue, personName, phoneLocal, resetCode } from "@/lib/validate";
+import { confirmPassword as passwordsMatch, emailAddress, imageFileProblem, passwordValue, personName, phoneLocal, resetCode } from "@/lib/validate";
 import { Gate, useFormGate } from "./form-gate";
 import { BackLink, Banner, Button, Field, PasswordField, PhoneField, TextInput } from "./ui";
 
 export function LoginScreen({ role }: { role: "CUSTOMER" | "PROVIDER" | "ADMIN" }) {
   const router = useRouter();
+  const isAdmin = role === "ADMIN";
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const home = role === "ADMIN" ? "/admin/dashboard" : (role === "CUSTOMER" ? "/customer/home" : "/provider/home");
-  const loginPath = role === "ADMIN" ? "/api/auth/login" : (role === "CUSTOMER" ? "/api/auth/customer/login" : "/api/auth/provider/login");
+  const loginPath = role === "ADMIN" ? "/api/auth/admin/login" : (role === "CUSTOMER" ? "/api/auth/customer/login" : "/api/auth/provider/login");
   const title = role === "ADMIN" ? "Admin Sign In" : (role === "CUSTOMER" ? "Customer Sign In" : "Service Provider Sign In");
   const subtitle = role === "ADMIN" ? "Log in to access the admin dashboard." : (role === "CUSTOMER" ? "Log in to book a service." : "Log in to manage jobs and requests.");
-  const forgotHref = role === "ADMIN" ? "/admin/forgot" : (role === "CUSTOMER" ? "/customer/forgot" : "/provider/forgot");
-  const signupHref = role === "ADMIN" ? "/admin/register" : (role === "CUSTOMER" ? "/customer/register" : "/provider/register");
+  const forgotHref = role === "CUSTOMER" ? "/customer/forgot" : "/provider/forgot";
+  const signupHref = role === "CUSTOMER" ? "/customer/register" : "/provider/register";
+  const gate = useFormGate([
+    ...(isAdmin
+      ? [{ id: "email", message: emailAddress(email) }]
+      : [{ id: "phone", message: phoneLocal(phone) }]),
+    { id: "password", message: passwordValue(password) },
+  ]);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (gate.blockSubmit()) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api(loginPath, {
+        method: "POST",
+        body: JSON.stringify(isAdmin ? { email, password } : { phone, password }),
+      });
+      router.replace(home);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="h-full overflow-y-auto px-6 py-8">
+      <BackLink href={isAdmin ? "/" : "/choose-role"} />
+      <h1 className="mt-5 font-display text-[2rem] leading-none">{title}</h1>
+      <p className="mt-2 text-sm text-muted">{subtitle}</p>
+      <form onSubmit={submit} className="mt-6 space-y-4">
+        {error && <Banner>{error}</Banner>}
+        {isAdmin ? (
+          <Gate id="email" gate={gate}><Field label="Email address" error={gate.error("email")}><TextInput type="email" inputMode="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" {...gate.input("email")} /></Field></Gate>
+        ) : (
+          <Gate id="phone" gate={gate}><Field label="Phone number" error={gate.error("phone")}><PhoneField value={phone} onChange={setPhone} {...gate.input("phone")} /></Field></Gate>
+        )}
+        <Gate id="password" gate={gate}><Field label="Password" error={gate.error("password")}><PasswordField value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" {...gate.input("password")} /></Field></Gate>
+        {!isAdmin && (
+          <div className="text-right">
+            <Link href={forgotHref} className="link-blue text-sm font-semibold">Forgot password?</Link>
+          </div>
+        )}
+        <Button type="submit" loading={loading}>Log In</Button>
+      </form>
+      {!isAdmin && (
+        <p className="mt-6 text-center text-sm text-muted">
+          New here?{" "}
+          <Link href={signupHref} className="link-blue font-semibold">Sign up</Link>
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function CustomerRegister() {
   const router = useRouter();

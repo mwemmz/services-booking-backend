@@ -1,6 +1,6 @@
 export type Me = {
   id: string;
-  role: "CUSTOMER" | "PROVIDER";
+  role: "CUSTOMER" | "PROVIDER" | "ADMIN";
   fullName: string;
   phone: string;
   avatarUrl: string | null;

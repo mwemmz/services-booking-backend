@@ -18,7 +18,7 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = {
+export type RequestOptions = {
   token?: string | null;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -85,10 +85,10 @@ export const apiDelete = <T>(path: string, token?: string | null) =>
   apiFetch<T>(path, { method: "DELETE", token });
 
 /** Map our API's lowercase roles onto the roles the UI is built around. */
-export type UiRole = "CUSTOMER" | "PROVIDER";
+export type UiRole = "CUSTOMER" | "PROVIDER" | "ADMIN";
 
 export const toUiRole = (role: string | undefined | null): UiRole =>
-  role === "provider" ? "PROVIDER" : "CUSTOMER";
+  role === "provider" ? "PROVIDER" : role === "admin" ? "ADMIN" : "CUSTOMER";
 
 export const toApiRole = (role: UiRole): "customer" | "provider" =>
   role === "PROVIDER" ? "provider" : "customer";

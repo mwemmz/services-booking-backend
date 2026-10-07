@@ -33,12 +33,15 @@ export async function login(identifier: string, password: string, expected?: Rol
     body: { identifier, password },
   });
 
-  const role = String(res.user.role).toUpperCase() === "PROVIDER" ? "PROVIDER" : "CUSTOMER";
+  const raw = String(res.user.role).toUpperCase();
+  const role: Role = raw === "PROVIDER" ? "PROVIDER" : raw === "ADMIN" ? "ADMIN" : "CUSTOMER";
   if (expected && role !== expected) {
     throw new HttpError(
-      role === "PROVIDER"
-        ? "That account belongs to a provider. Sign in from the provider side."
-        : "That account belongs to a customer. Sign in from the customer side.",
+      expected === "ADMIN"
+        ? "That account is not an admin account."
+        : role === "PROVIDER"
+          ? "That account belongs to a provider. Sign in from the provider side."
+          : "That account belongs to a customer. Sign in from the customer side.",
       403,
     );
   }
@@ -237,7 +240,7 @@ export async function me(): Promise<Me> {
 
   return {
     id: user.id,
-    role: isProvider ? "PROVIDER" : "CUSTOMER",
+    role: String(user.role).toLowerCase() === "admin" ? "ADMIN" : isProvider ? "PROVIDER" : "CUSTOMER",
     fullName: user.name,
     phone: user.phone ?? "",
     avatarUrl: user.profile_image,
