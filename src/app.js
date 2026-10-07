@@ -60,7 +60,24 @@ function createApp({ nextDispatch, nextFallback, corsOptions } = {}) {
   // per-client rate limiting instead of lumping everyone behind the proxy.
   app.set('trust proxy', 1);
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: process.env.NODE_ENV === 'production'
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+              styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+              imgSrc: ["'self'", "data:", "blob:", "https:"],
+              fontSrc: ["'self'", "data:", "https:"],
+              connectSrc: ["'self'", "ws:", "wss:", "https:"],
+              mediaSrc: ["'self'"],
+              frameSrc: ["'self'"],
+            },
+          }
+        : undefined,
+    })
+  );
   app.use(cors(corsOptions));
   app.use(morgan('dev'));
 
