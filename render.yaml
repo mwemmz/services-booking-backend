@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     branch: master
-    buildCommand: npm install --prefix . && npm install --prefix web && npm run build --prefix web
+    buildCommand: npm install --prefix . && npm install --include=dev --prefix web && npm run build --prefix web
     startCommand: node server.js
     healthCheckPath: /api/health
     envVars:
