@@ -80,7 +80,11 @@ export default function ChooseRolePage() {
           kind="customer"
         />
       </div>
-      <p className="mt-5 text-center text-[11px] tracking-wide text-[#8a7362]">Same platform. Different needs.</p>
+      <p className="mt-5 text-center text-[13px] text-[#5c4636]">
+        Are you an administrator?{" "}
+        <Link href="/admin/login" className="font-semibold text-forest underline underline-offset-2">Admin sign in</Link>
+      </p>
+      <p className="mt-2 text-center text-[11px] tracking-wide text-[#8a7362]">Same platform. Different needs.</p>
     </div>
   );
 }
