@@ -524,9 +524,23 @@ exports.getProviderBookings = async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
 
-    const provider = await Provider.findOne({ where: { user_id: req.params.providerId || req.user.id } });
+    // :providerId may be either the Provider row id (used everywhere else in the
+    // API, e.g. createBooking) or the provider's user id. Accept both.
+    const requestedId = req.params.providerId;
+    let provider = null;
+    if (requestedId) {
+      provider = await Provider.findByPk(requestedId);
+      if (!provider) provider = await Provider.findOne({ where: { user_id: requestedId } });
+    } else {
+      provider = await Provider.findOne({ where: { user_id: req.user.id } });
+    }
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found.' });
+    }
+
+    // Only the provider themselves (or an admin) may read a provider's bookings.
+    if (req.user.role !== 'admin' && provider.user_id !== req.user.id) {
+      return res.status(403).json({ message: 'You can only view your own bookings.' });
     }
 
     const where = { provider_id: provider.id };
