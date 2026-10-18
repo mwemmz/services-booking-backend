@@ -1,4 +1,5 @@
-const { Location, Provider } = require('../models');
+const { Location, Provider, Booking } = require('../models');
+const { emitToBooking } = require('../config/socket');
 const { haversineDistance } = require('../utils/distance');
 const config = require('../config/config');
 
@@ -37,6 +38,22 @@ exports.updateProviderLocation = async (req, res) => {
         location_accuracy: parsedAccuracy,
         last_location_update: new Date(),
       });
+    }
+
+    // Relay accurate fixes to the customer watching this booking, the same way the
+    // socket 'location-update' path does, so REST-only clients still drive the live map.
+    if (isAccurate && booking_id) {
+      const booking = await Booking.findByPk(booking_id, { attributes: ['id', 'provider_id'] });
+      if (booking && booking.provider_id === provider.id) {
+        emitToBooking(booking_id, 'provider-location', {
+          providerId: req.user.id,
+          latitude,
+          longitude,
+          accuracy: parsedAccuracy,
+          heading: heading != null ? parseFloat(heading) : null,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
 
     return res.json({

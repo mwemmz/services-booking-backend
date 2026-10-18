@@ -483,7 +483,15 @@ exports.getWorkHistory = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
 
-    const provider = await Provider.findOne({ where: { user_id: req.params.providerId || req.user.id } });
+    // Accept either the Provider id or the provider's user id (see getProviderBookings).
+    const requestedId = req.params.providerId;
+    let provider = null;
+    if (requestedId) {
+      provider = await Provider.findByPk(requestedId);
+      if (!provider) provider = await Provider.findOne({ where: { user_id: requestedId } });
+    } else {
+      provider = await Provider.findOne({ where: { user_id: req.user.id } });
+    }
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found.' });
     }
