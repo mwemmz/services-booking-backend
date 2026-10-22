@@ -264,6 +264,20 @@ exports.updateBookingStatus = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found.' });
     }
 
+    // Only parties to the booking may move it: its provider (any valid
+    // transition), its customer (cancellation only), or an admin. Without this
+    // any authenticated user could drive someone else's booking.
+    const isAdmin = req.user.role === 'admin';
+    const isCustomerCancelling = booking.customer_id === req.user.id && status === 'cancelled';
+    let isProvider = false;
+    if (!isAdmin && !isCustomerCancelling) {
+      const provider = await Provider.findOne({ where: { user_id: req.user.id } });
+      isProvider = !!provider && booking.provider_id === provider.id;
+    }
+    if (!isAdmin && !isProvider && !isCustomerCancelling) {
+      return res.status(403).json({ message: 'Not authorized to update this booking.' });
+    }
+
     // Applying the same status is a harmless no-op (helps idempotent retries).
     if (status === booking.status) {
       return res.json({ message: `Booking is already '${status}'.`, booking });
