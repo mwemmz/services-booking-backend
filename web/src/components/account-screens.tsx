@@ -236,7 +236,7 @@ export function FavoritesScreen() {
       {error && <div className="mt-3"><Banner>{error}</Banner></div>}
       {!rows && !error && <LoadingBlock label="Loading favourites..." />}
       {rows && rows.length === 0 && <div className="mt-4"><EmptyState title="No favourites yet" body="Tap the heart on a provider to save them." /></div>}
-      <div className="mt-4 space-y-3">{rows?.map((provider) => <Card key={provider.id} provider={provider} href={`/customer/providers/${provider.id}`} />)}</div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">{rows?.map((provider) => <Card key={provider.id} provider={provider} href={`/customer/providers/${provider.id}`} />)}</div>
     </Screen>
   );
 }

@@ -95,12 +95,12 @@ export function CustomerHome() {
       {data && (
         <div className="mt-5 space-y-6">
           {data.featured && (
-            <Link href={`/customer/categories/${data.featured.slug}`} className="press relative block h-[188px] overflow-hidden rounded-[28px] shadow-[0_10px_24px_rgba(74,49,32,0.08)]">
+            <Link href={`/customer/categories/${data.featured.slug}`} className="press relative block h-[188px] overflow-hidden rounded-[28px] bg-[#f8f1eb] shadow-[0_10px_24px_rgba(74,49,32,0.08)] lg:h-[240px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/dashboard-hero.jpg?v=1" alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
-              <div className="relative flex h-full w-[52%] flex-col justify-between p-4 sm:p-5">
+              <img src="/images/dashboard-hero.jpg?v=1" alt="" className="absolute inset-y-0 right-0 h-full w-[70%] object-cover object-right [mask-image:linear-gradient(to_right,transparent,black_28%)] lg:w-[60%]" />
+              <div className="relative flex h-full w-[50%] flex-col justify-between p-4 sm:p-5 lg:w-[42%] lg:p-7">
                 <p className="flex items-center gap-1 text-[11px] font-medium text-[#6f4b32]"><MapPin size={12} className="text-forest" /> {place}</p>
-                <p className="font-display text-[1.55rem] leading-[1.05] text-[#3a2a1c] sm:text-[1.75rem]">Quality service near you</p>
+                <p className="font-display text-[1.4rem] leading-[1.05] text-[#3a2a1c] sm:text-[1.6rem] lg:text-[2.2rem]">Quality service near you</p>
                 <span className="btn-3d btn-3d-cta mt-3 inline-flex h-9 w-fit items-center rounded-full px-4 text-xs font-semibold text-white">Book now</span>
               </div>
             </Link>
@@ -134,7 +134,7 @@ export function CustomerHome() {
             {data.recommended.length === 0 ? (
               <EmptyState title="No providers yet" body="Providers will appear here once they add services." />
             ) : (
-              <div className="space-y-3">
+              <div className="grid gap-3 lg:grid-cols-2">
                 {data.recommended.map((provider, index) => (
                   <div key={provider.id} className="rise" style={{ animationDelay: `${index * 40}ms` }}>
                     <Card provider={provider} href={`/customer/providers/${provider.id}`} />

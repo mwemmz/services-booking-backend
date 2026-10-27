@@ -127,7 +127,7 @@ export function AppShell({ role, children }: { role: "CUSTOMER" | "PROVIDER"; ch
 
   return (
     <AppContext.Provider value={me ? { me, refresh } : null}>
-      <div className="relative flex h-full min-h-0 flex-col">
+      <div className="shell relative flex h-full min-h-0 flex-col">
         {popup && (
           <button
             type="button"
@@ -136,7 +136,7 @@ export function AppShell({ role, children }: { role: "CUSTOMER" | "PROVIDER"; ch
               setPopup(null);
               if (href) router.push(href);
             }}
-            className="absolute inset-x-3 top-3 z-40 rounded-[22px] border border-line bg-card px-4 py-3 text-left shadow-[0_16px_40px_rgba(58,42,28,0.28)]"
+            className="shell-popup absolute inset-x-3 top-3 z-40 rounded-[22px] border border-line bg-card px-4 py-3 text-left shadow-[0_16px_40px_rgba(58,42,28,0.28)]"
           >
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">ZamServe · now</p>
             <p className="mt-1 text-sm font-semibold">{popup.title}</p>
@@ -152,8 +152,8 @@ export function AppShell({ role, children }: { role: "CUSTOMER" | "PROVIDER"; ch
             </div>
           )}
         </div>
-        {!hideNav && (
-          <nav className={cn("grid", role === "PROVIDER" ? "mx-3 mb-[max(10px,env(safe-area-inset-bottom))] rounded-[26px] border border-line bg-card px-1 py-1 shadow-[0_12px_30px_rgba(74,49,32,0.08)]" : "border-t border-line bg-card/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2")} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {(
+          <nav className={cn("shell-nav grid", hideNav && "nav-hidden", role === "PROVIDER" ? "mx-3 mb-[max(10px,env(safe-area-inset-bottom))] rounded-[26px] border border-line bg-card px-1 py-1 shadow-[0_12px_30px_rgba(74,49,32,0.08)]" : "border-t border-line bg-card/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2")} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
             {items.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const badge = item.label === "Messages" ? me?.unreadMessages ?? 0 : 0;

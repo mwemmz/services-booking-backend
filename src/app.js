@@ -63,6 +63,8 @@ function createApp({ nextDispatch, nextFallback, corsOptions } = {}) {
 
   app.use(
     helmet({
+      // Map tile servers refuse requests that carry no Referer, so send the site origin.
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
       contentSecurityPolicy: process.env.NODE_ENV === 'production'
         ? {
             directives: {

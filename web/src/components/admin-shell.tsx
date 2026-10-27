@@ -71,7 +71,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </button>
       </header>
 
-      <div className="scroll-area min-h-0 flex-1 overflow-y-auto">
+      <div className="scroll-area admin-main min-h-0 flex-1 overflow-y-auto">
         {!me && !error && (
           <div className="px-5 pt-6">
             <LoadingBlock label="Opening the admin console..." />
@@ -86,7 +86,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </div>
 
       <nav
-        className="mx-3 mb-[max(10px,env(safe-area-inset-bottom))] grid rounded-[26px] border border-line bg-card px-1 py-1 shadow-[0_12px_30px_rgba(74,49,32,0.08)]"
+        className="admin-nav mx-3 mb-[max(10px,env(safe-area-inset-bottom))] grid rounded-[26px] border border-line bg-card px-1 py-1 shadow-[0_12px_30px_rgba(74,49,32,0.08)]"
         style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
       >
         {nav.map((item) => {

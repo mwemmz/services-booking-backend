@@ -26,7 +26,7 @@ export function CategoriesScreen() {
       <p className="mt-1 text-sm text-muted">Beauty & cosmetics, repairs, and cleaning.</p>
       {error && <div className="mt-4"><Banner>{error}</Banner></div>}
       {!categories && !error && <div className="mt-4"><LoadingBlock label="Loading categories..." /></div>}
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {categories?.map((category) => (
           <Link key={category.id} href={`/customer/categories/${category.slug}`} className="press relative block h-36 overflow-hidden rounded-[24px] ring-2 ring-sage-line">
             {category.imageUrl && <img src={category.imageUrl} alt="" className="h-full w-full object-cover" />}
@@ -201,7 +201,7 @@ export function SearchScreen() {
       {!loading && providers && providers.length === 0 && (
         <div className="mt-4"><EmptyState title="No providers currently offer this service." body="Try another service, or check back as more providers join." /></div>
       )}
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {providers?.map((provider) => <Card key={provider.id} provider={provider} href={`/customer/providers/${provider.id}${service ? `?service=${service}` : ""}`} />)}
       </div>
     </Screen>
@@ -240,8 +240,10 @@ export function PublicProvider({ id }: { id: string }) {
 
   return (
     <div>
-      <div className="relative h-56 bg-sand">
-        {provider?.avatarUrl && <img src={provider.avatarUrl} alt="" className="h-full w-full object-cover" />}
+      <div className={`relative bg-sand ${provider?.avatarUrl ? "h-56 lg:h-72" : "h-32"}`}>
+        {provider?.avatarUrl ? <img src={provider.avatarUrl} alt="" className="h-full w-full object-cover" /> : provider && (
+          <div className="grid h-full place-items-center"><span className="grid h-20 w-20 place-items-center rounded-full bg-card font-display text-4xl text-forest shadow-[0_8px_20px_rgba(74,49,32,0.12)]">{provider.name.charAt(0).toUpperCase()}</span></div>
+        )}
         <div className="absolute left-4 top-4"><BackLink href="/customer/home" /></div>
       </div>
       <Screen className="pt-4">
@@ -266,7 +268,7 @@ export function PublicProvider({ id }: { id: string }) {
               <Stars value={provider.rating} /> {provider.rating.toFixed(1)} · {provider.reviewCount} reviews
             </p>
             <p className="mt-1 flex items-center gap-1 text-sm text-muted"><MapPin size={14} /> {provider.distanceKm != null ? `${provider.distanceKm} km · ` : ""}{provider.serviceArea}</p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mb-6 mt-4 grid grid-cols-2 gap-3">
               <Button variant="ghost" onClick={() => router.push("/customer/messages")}>Chat after booking</Button>
               <Button onClick={() => selected && router.push(`/customer/book?provider=${provider.id}&service=${selected}`)}>Book service</Button>
             </div>

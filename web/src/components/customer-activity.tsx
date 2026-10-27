@@ -42,7 +42,7 @@ export function CustomerBookings() {
       {error && <div className="mt-4"><Banner>{error}</Banner></div>}
       {!bookings && !error && <div className="mt-4"><LoadingBlock label="Loading bookings..." /></div>}
       {bookings && visible.length === 0 && <div className="mt-4"><EmptyState title="Nothing here yet" body="Bookings you make will show up in this list." /></div>}
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {visible.map((booking) => (
           <Link key={booking.id} href={`/customer/bookings/${booking.id}`} className="press block rounded-[22px] border border-line bg-card p-3">
             <div className="flex items-center justify-between gap-2">

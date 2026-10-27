@@ -179,7 +179,7 @@ export function BackLink({ href, label = "Back" }: { href?: string; label?: stri
     router.push(href || "/");
   }
   return (
-    <button type="button" onClick={go} className="btn-3d btn-3d-cta inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-semibold text-white">
+    <button type="button" onClick={go} className="btn-3d btn-3d-cta mb-1 inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-semibold text-white">
       {label}
     </button>
   );

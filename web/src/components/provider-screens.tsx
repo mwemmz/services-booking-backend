@@ -204,10 +204,10 @@ export function ProviderHome() {
         </div>
       </header>
 
-      <section className="hero-3d dash-rise relative -mx-4 mt-5 h-[214px] overflow-hidden rounded-[28px] bg-[#f7f1e8]">
-        <img src="/images/provider-welcome.jpg?v=1" alt="" className="absolute inset-y-0 right-0 h-full w-[58%] object-cover object-[58%_center] [mask-image:linear-gradient(to_right,transparent,black_46%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_46%)]" />
+      <section className="hero-3d dash-rise relative -mx-4 mt-5 h-[214px] overflow-hidden rounded-[28px] bg-[#f7f1e8] lg:mx-0 lg:h-[250px]">
+        <img src="/images/provider-welcome.jpg?v=1" alt="" className="absolute inset-y-0 right-0 h-full w-[58%] object-cover object-[58%_center] lg:w-[56%] lg:object-contain lg:object-right [mask-image:linear-gradient(to_right,transparent,black_46%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_46%)]" />
         <div className="hero-copy relative z-10 flex h-full w-[50%] flex-col justify-center px-4 py-4">
-          <p className="text-[15px] font-medium leading-snug text-[#5c4636]">Here&apos;s what&apos;s happening with your services today.</p>
+          <p className="text-[15px] font-medium leading-snug text-[#5c4636] lg:text-xl">Here&apos;s what&apos;s happening with your services today.</p>
           <div className="mt-3 w-fit rounded-full bg-[#e5f6ec] px-2.5 py-1">
             {me.provider?.verificationStatus === "VERIFIED" ? <Verified /> : <p className="text-xs font-semibold text-[#2a1c12]">Your account is under review.</p>}
           </div>
@@ -252,7 +252,7 @@ export function ProviderHome() {
               <button type="button" onClick={openAdd} className="mt-2 inline-flex h-9 items-center gap-1 rounded-full bg-forest px-4 text-xs font-semibold text-white"><Plus size={14} /> Add your first service</button>
             </div>
           )}
-          <div className="space-y-3">
+          <div className="grid gap-3 lg:grid-cols-2">
             {data.services.map((service) => {
               const mark = serviceMark(service.name, service.category);
               return (
@@ -888,7 +888,7 @@ export function ProviderBookings() {
           />
         </div>
       )}
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {visible.map((booking) => (
           <Link key={booking.id} href={`/provider/bookings/${booking.id}`} className="press block rounded-[20px] border border-line bg-card p-3">
             <div className="flex justify-between gap-2"><p className="font-semibold">{booking.service.name}</p><StatusPill status={booking.status} label={STATUS_LABEL[booking.status]} /></div>

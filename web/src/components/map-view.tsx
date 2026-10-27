@@ -35,7 +35,7 @@ export function MapView({
       const first = parsed.pins[0] ?? { lat: -15.4167, lng: 28.2833 };
       map = L.map(holder.current, { zoomControl: false, attributionControl: true }).setView([first.lat, first.lng], 13);
       const tile = process.env.NEXT_PUBLIC_MAP_TILE_URL || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-      L.tileLayer(tile, { attribution: "&copy; OpenStreetMap" }).addTo(map);
+      L.tileLayer(tile, { attribution: "&copy; OpenStreetMap", referrerPolicy: "origin" } as import("leaflet").TileLayerOptions).addTo(map);
       parsed.pins.forEach((pin) => {
         const icon = L.divIcon({
           className: "",
