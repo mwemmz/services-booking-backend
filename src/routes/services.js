@@ -7,6 +7,7 @@ const {
   updateService,
   deleteService,
   getProviderServices,
+  getMyServices,
 } = require('../controllers/serviceController');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
@@ -20,6 +21,7 @@ router.param('providerId', uuidParam('providerId'));
 
 router.post('/', authenticate, authorize('provider'), [...createServiceRules, validate], createService);
 router.get('/', getAllServices);
+router.get('/mine', authenticate, authorize('provider'), getMyServices);
 router.get('/provider/:providerId', getProviderServices);
 router.get('/:id', getServiceById);
 router.put('/:id', authenticate, authorize('provider'), [...updateServiceRules, validate], updateService);

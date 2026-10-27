@@ -11,8 +11,8 @@ export const GET = route(async (req) => {
   const response = await fetch(url, {
     headers: { "User-Agent": "ZamServe/1.0 (local service marketplace)", Accept: "application/json" },
     cache: "no-store",
-  });
-  if (!response.ok) return fail("Unable to search locations. Please try again.", 502);
+  }).catch(() => null);
+  if (!response?.ok) return fail("Unable to search locations. Please try again.", 502);
   const rows = (await response.json()) as { display_name: string; lat: string; lon: string }[];
   return ok(rows.map((row) => ({ label: row.display_name, latitude: Number(row.lat), longitude: Number(row.lon) })));
 });

@@ -181,6 +181,7 @@ export async function providerSlots(providerId: string, date: string): Promise<P
 
   const res = await apiFetch<{ slots: Array<{ time: string; label: string }> }>(
     `/bookings/slots?provider_id=${encodeURIComponent(providerId)}&date=${encodeURIComponent(date)}`,
+    await authed(),
   );
 
   const slots = (res.slots ?? []).map((slot) => ({

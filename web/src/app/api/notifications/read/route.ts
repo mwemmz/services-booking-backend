@@ -8,6 +8,6 @@ export const dynamic = "force-dynamic";
 export const POST = route(async () => {
   await requireUser();
   const token = await getAccessToken();
-  await apiFetch("/notifications/read", { method: "PUT", token, body: {} });
+  await apiFetch("/notifications/read-all", { method: "PUT", token, body: {} });
   return ok({ ok: true });
 });

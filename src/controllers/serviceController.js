@@ -91,7 +91,7 @@ exports.updateService = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this service.' });
     }
 
-    const allowedFields = ['name', 'description', 'price', 'duration', 'category', 'image', 'catalog_service_id'];
+    const allowedFields = ['name', 'description', 'price', 'duration', 'category', 'image', 'catalog_service_id', 'is_active'];
     const updates = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
@@ -156,6 +156,18 @@ const where = req.params.providerId ? { id: req.params.providerId } : { user_id:
       where: { provider_id: provider.id, is_active: true },
     });
 
+    return res.json({ services });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch services.', error: error.message });
+  }
+};
+
+/** The signed-in provider's own services, including ones they have switched off. */
+exports.getMyServices = async (req, res) => {
+  try {
+    const provider = await Provider.findOne({ where: { user_id: req.user.id } });
+    if (!provider) return res.status(404).json({ message: 'Provider not found.' });
+    const services = await Service.findAll({ where: { provider_id: provider.id }, order: [['createdAt', 'ASC']] });
     return res.json({ services });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch services.', error: error.message });

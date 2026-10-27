@@ -13,8 +13,8 @@ export const GET = route(async (req) => {
   const response = await fetch(endpoint, {
     headers: { "User-Agent": "ZamServe/1.0 (local service marketplace)", Accept: "application/json" },
     cache: "no-store",
-  });
-  if (!response.ok) return fail("Unable to read that location. Enter it manually.", 502);
+  }).catch(() => null);
+  if (!response?.ok) return fail("Unable to read that location. Enter it manually.", 502);
   const data = (await response.json()) as { display_name?: string };
   return ok({ label: data.display_name || "Selected location", latitude: lat, longitude: lng });
 });

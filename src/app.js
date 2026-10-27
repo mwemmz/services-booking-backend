@@ -25,6 +25,7 @@ const nationalIdRoutes = require('./routes/nationalIds');
 const insightRoutes = require('./routes/insights');
 const endorsementRoutes = require('./routes/endorsements');
 const addressRoutes = require('./routes/addresses');
+const paymentMethodRoutes = require('./routes/paymentMethods');
 const portfolioRoutes = require('./routes/portfolio');
 const geoRoutes = require('./routes/geo');
 const messageRoutes = require('./routes/messages');
@@ -126,6 +127,7 @@ function createApp({ nextDispatch, nextFallback, corsOptions } = {}) {
   app.use('/api/insights', insightRoutes);
   app.use('/api/endorsements', endorsementRoutes);
   app.use('/api/addresses', addressRoutes);
+  app.use('/api/payment-methods', paymentMethodRoutes);
   app.use('/api/portfolio', portfolioRoutes);
   app.use('/api/geo', geoRoutes);
   app.use('/api/messages', messageRoutes);

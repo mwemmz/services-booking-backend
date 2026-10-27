@@ -18,6 +18,7 @@ const Conversation = require('./Conversation');
 const Message = require('./Message');
 const Favourite = require('./Favourite');
 const Address = require('./Address');
+const PaymentMethod = require('./PaymentMethod');
 const PortfolioItem = require('./PortfolioItem');
 const BookingStatusHistory = require('./BookingStatusHistory');
 const Transaction = require('./Transaction');
@@ -97,6 +98,8 @@ Favourite.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 // Saved addresses: a user keeps reusable home/office locations for booking.
 User.hasMany(Address, { foreignKey: 'user_id', as: 'addresses' });
 Address.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(PaymentMethod, { foreignKey: 'user_id', as: 'paymentMethods' });
+PaymentMethod.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // Portfolio: a provider showcases images of past work.
 Provider.hasMany(PortfolioItem, { foreignKey: 'provider_id', as: 'portfolio' });
@@ -143,6 +146,7 @@ Category,
   Message,
   Favourite,
   Address,
+  PaymentMethod,
   PortfolioItem,
   BookingStatusHistory,
   Transaction,

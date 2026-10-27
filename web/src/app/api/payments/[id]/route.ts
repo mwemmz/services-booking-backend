@@ -9,7 +9,6 @@ export const DELETE = route(async (_req, ctx) => {
   const user = await requireUser("CUSTOMER");
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
   const { id } = await ctx.params;
-  const token = await getAccessToken();
-  await apiFetch(`/payments/${id}`, { method: "DELETE", token });
+  await apiFetch(`/payment-methods/${id}`, { method: "DELETE", token: await getAccessToken() });
   return ok({ ok: true });
 });

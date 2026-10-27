@@ -96,9 +96,16 @@ exports.generateSlots = async ({ providerId, date, slotMinutes = 30, durationMin
     where: { provider_id: providerId, day_of_week: dayOfWeek, is_active: true },
   });
 
-  const dayRanges = availability
+  let dayRanges = availability
     ? [{ start: availability.start_time, end: availability.end_time }]
     : provider.working_hours?.[targetDay];
+
+  // A provider who has not set up a week yet is open Monday to Saturday, 08:00-18:00. This matches
+  // the defaults the availability screen shows, so a new account can take bookings straight away.
+  if (!availability && !provider.working_hours) {
+    const hasWeek = await ProviderAvailability.count({ where: { provider_id: providerId } });
+    if (!hasWeek && dayOfWeek !== 0) dayRanges = [{ start: '08:00', end: '18:00' }];
+  }
 
   if (!dayRanges || dayRanges.length === 0) {
     return { slots: [], message: `Provider is not available on ${targetDay}.` };

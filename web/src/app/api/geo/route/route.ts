@@ -13,8 +13,8 @@ export const GET = route(async (req) => {
   if (![fromLat, fromLng, toLat, toLng].every(Number.isFinite)) throw new HttpError("A valid route is required.", 400);
   const base = process.env.OSRM_URL || "https://router.project-osrm.org";
   const endpoint = `${base}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
-  const response = await fetch(endpoint, { cache: "no-store" });
-  if (!response.ok) return fail("Unable to load the route.", 502);
+  const response = await fetch(endpoint, { cache: "no-store" }).catch(() => null);
+  if (!response?.ok) return fail("Unable to load the route.", 502);
   const data = (await response.json()) as {
     routes?: { duration: number; distance: number; geometry?: { coordinates?: [number, number][] } }[];
   };

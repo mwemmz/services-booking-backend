@@ -42,7 +42,17 @@ const withCatalogServices = {
   model: CatalogService,
   as: 'catalogServices',
   required: false,
-  include: [{ model: Service, as: 'offerings', required: false, where: { is_active: true }, attributes: ['id'] }],
+  include: [
+    {
+      model: Service,
+      as: 'offerings',
+      required: false,
+      where: { is_active: true },
+      attributes: ['id'],
+      // Only verified providers are listed to customers, so only they count towards "N providers".
+      include: [{ model: Provider, as: 'provider', required: true, attributes: [], where: { is_verified: true } }],
+    },
+  ],
 };
 
 /** Categories with their services, in the order the storefront shows them. */
@@ -64,9 +74,7 @@ exports.listCategories = async (req, res) => {
 
 exports.getCategory = async (req, res) => {
   try {
-    const where = req.params.slug.includes('-')
-      ? { slug: req.params.slug }
-      : { name: req.params.slug };
+    const where = { [Op.or]: [{ slug: req.params.slug }, { name: { [Op.iLike]: req.params.slug } }] };
 
     const category = await Category.findOne({ where, include: [withCatalogServices] });
     if (!category) {
@@ -286,6 +294,31 @@ const parseCoords = (query) => {
   return Object.keys(coords).length === 2 ? coords : undefined;
 };
 
+/** SERVICE_INCLUDE, narrowed to a catalogue service or category when the storefront filters by one. */
+const storefrontServiceInclude = ({ service, category }) => {
+  if (!service && !category) return SERVICE_INCLUDE;
+  return {
+    ...SERVICE_INCLUDE,
+    required: true,
+    include: [
+      {
+        model: CatalogService,
+        as: 'catalogService',
+        required: true,
+        ...(service ? { where: { slug: service } } : {}),
+        include: [
+          {
+            model: Category,
+            as: 'category',
+            required: Boolean(category && !service),
+            ...(category && !service ? { where: { slug: category } } : {}),
+          },
+        ],
+      },
+    ],
+  };
+};
+
 exports.listStorefrontProviders = async (req, res) => {
   try {
     const { category, service, q } = req.query;
@@ -295,18 +328,7 @@ exports.listStorefrontProviders = async (req, res) => {
       where,
       include: [
         { model: User, as: 'user', attributes: ['id', 'name', 'profile_image'] },
-        {
-          ...SERVICE_INCLUDE,
-          ...(service
-            ? { required: true, where: { is_active: true, catalogService: { slug: service } } }
-            : {}),
-          ...(category && !service
-            ? {
-                required: true,
-                where: { is_active: true, catalogService: { category: { slug: category } } },
-              }
-            : {}),
-        },
+        storefrontServiceInclude({ service, category }),
       ],
       order: [['rating', 'DESC']],
     });

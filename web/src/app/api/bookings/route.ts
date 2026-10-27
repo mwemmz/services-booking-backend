@@ -32,12 +32,17 @@ export const POST = route(async (req) => {
     .parse(await readJson(req));
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
   const token = await getAccessToken();
+  // The booking screen identifies a service by its catalogue id when it has one; the API books the
+  // provider's own priced service, so look that up from the provider's list.
+  const offered = await apiFetch<{ services: { id: string; catalog_service_id: string | null }[] }>(`/services/provider/${body.providerId}`, { token });
+  const service = offered.services.find((item) => item.id === body.serviceId || item.catalog_service_id === body.serviceId);
+  if (!service) throw new HttpError("That service is no longer offered by this provider.", 404);
   const created = await apiFetch<{ booking: { id: string } }>("/bookings", {
     method: "POST",
     token,
     body: {
       provider_id: body.providerId,
-      service_id: body.serviceId,
+      service_id: service.id,
       booking_time: toBookingTime(body.date, body.time),
       address: body.addressLine,
       location_lat: body.latitude ?? undefined,
@@ -45,5 +50,13 @@ export const POST = route(async (req) => {
       notes: body.notes ? `${body.notes}` : undefined,
     },
   });
+  if (body.saveAddress) {
+    // Saving the address is a convenience; a failure here must not undo the booking.
+    await apiFetch("/addresses", {
+      method: "POST",
+      token,
+      body: { label: body.addressLabel || "Saved", address_line: body.addressLine, latitude: body.latitude ?? undefined, longitude: body.longitude ?? undefined },
+    }).catch(() => undefined);
+  }
   return ok(await loadBooking(created.booking.id, token, "CUSTOMER"), 201);
 });

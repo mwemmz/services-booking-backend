@@ -11,6 +11,7 @@ const { scanNextApiRoutes, matchesNextApiRoute } = require('./src/nextBffRoutes'
 const { scheduleBookingExpiry } = require('./src/services/bookingExpiryCron');
 const { applyEnumMigrations, applyCatalogMigrations } = require('./src/services/schemaMigrations');
 const { bootstrapAdmin } = require('./src/services/bootstrapAdmin');
+const { seedCatalog } = require('./seeds/catalog');
 
 const WEB_DIR = path.join(__dirname, 'web');
 
@@ -62,6 +63,8 @@ const startServer = async () => {
 
   scheduleBookingExpiry();
   await bootstrapAdmin();
+  // Idempotent: keeps the browsable catalogue (categories and services) present on a fresh database.
+  await seedCatalog().catch((error) => console.error('[seed] catalogue seed failed:', error.message));
 
   const port = process.env.PORT || 3000;
   server.listen(port, () => {
