@@ -3,14 +3,14 @@ import { route, ok, readJson, HttpError } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { getAccessToken } from "@/lib/session";
+import { loadBooking, loadBookingList, toBookingTime, viewerOf } from "@/lib/booking-bff";
 
 export const dynamic = "force-dynamic";
 
 export const GET = route(async () => {
   const user = await requireUser();
   const token = await getAccessToken();
-  const res = await apiFetch("/bookings", { token });
-  return ok(res);
+  return ok(await loadBookingList(token, viewerOf(user.role)));
 });
 
 export const POST = route(async (req) => {
@@ -32,6 +32,18 @@ export const POST = route(async (req) => {
     .parse(await readJson(req));
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
   const token = await getAccessToken();
-  const res = await apiFetch("/bookings", { method: "POST", body, token });
-  return ok(res, 201);
+  const created = await apiFetch<{ booking: { id: string } }>("/bookings", {
+    method: "POST",
+    token,
+    body: {
+      provider_id: body.providerId,
+      service_id: body.serviceId,
+      booking_time: toBookingTime(body.date, body.time),
+      address: body.addressLine,
+      location_lat: body.latitude ?? undefined,
+      location_lng: body.longitude ?? undefined,
+      notes: body.notes ? `${body.notes}` : undefined,
+    },
+  });
+  return ok(await loadBooking(created.booking.id, token, "CUSTOMER"), 201);
 });

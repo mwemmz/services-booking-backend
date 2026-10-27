@@ -2,6 +2,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const config = require('./config');
+const { Booking, Provider } = require('../models');
 
 let io;
 
@@ -50,17 +51,33 @@ const initSocket = (server, options = {}) => {
 
     socket.join(`user:${socket.userId}`);
 
-    socket.on('join-booking', (bookingId) => {
-      socket.join(`booking:${bookingId}`);
+    // Only the customer, the assigned provider or an admin may watch a booking's room.
+    const mayAccessBooking = async (bookingId) => {
+      try {
+        if (!bookingId) return false;
+        if (socket.userRole === 'admin') return true;
+        const booking = await Booking.findByPk(bookingId, {
+          attributes: ['id', 'customer_id', 'provider_id'],
+          include: [{ model: Provider, as: 'provider', attributes: ['user_id'] }],
+        });
+        if (!booking) return false;
+        return booking.customer_id === socket.userId || booking.provider?.user_id === socket.userId;
+      } catch (err) {
+        return false;
+      }
+    };
+
+    socket.on('join-booking', async (bookingId) => {
+      if (await mayAccessBooking(bookingId)) socket.join(`booking:${bookingId}`);
     });
 
     socket.on('leave-booking', (bookingId) => {
       socket.leave(`booking:${bookingId}`);
     });
 
-    socket.on('location-update', (data) => {
-      const { bookingId, latitude, longitude, accuracy, heading, isAccurate } = data;
-      if (socket.userRole === 'provider' && isAccurate !== false) {
+    socket.on('location-update', async (data) => {
+      const { bookingId, latitude, longitude, accuracy, heading, isAccurate } = data || {};
+      if (socket.userRole === 'provider' && isAccurate !== false && (await mayAccessBooking(bookingId))) {
         io.to(`booking:${bookingId}`).emit('provider-location', {
           providerId: socket.userId,
           latitude,
@@ -72,8 +89,9 @@ const initSocket = (server, options = {}) => {
       }
     });
 
-    socket.on('booking-action', (data) => {
-      const { bookingId, action } = data;
+    socket.on('booking-action', async (data) => {
+      const { bookingId, action } = data || {};
+      if (!(await mayAccessBooking(bookingId))) return;
       io.to(`booking:${bookingId}`).emit('booking-status-update', {
         bookingId,
         action,

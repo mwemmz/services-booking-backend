@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Phone } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Phone, TriangleAlert } from "lucide-react";
 import { ApiError, api } from "@/lib/client";
 import { messageText, requiredText } from "@/lib/validate";
 import { formatDuration, formatStamp, formatWhen, kwacha } from "@/lib/format";
 import { STATUS_LABEL, canMessage, customerCanCancel, isActiveStatus } from "@/lib/statuses";
 import type { Booking, ChatMessage, Thread } from "@/lib/types";
+import { useLiveTracking } from "@/lib/use-live-tracking";
 import dynamic from "next/dynamic";
 import { Avatar, BackLink, Banner, Button, EmptyState, LoadingBlock, Modal, Screen, StarPicker, Stars, StatusPill } from "./ui";
 
@@ -66,6 +67,12 @@ export function CustomerBookingDetail({ id }: { id: string }) {
   const [comment, setComment] = useState("");
   const [route, setRoute] = useState<[number, number][]>([]);
   const [eta, setEta] = useState<number | null>(null);
+  const [routeNotice, setRouteNotice] = useState("");
+  const lastRouteAt = useRef(0);
+  const { fix, connected } = useLiveTracking(id, Boolean(booking && (booking.status === "ACCEPTED" || isActiveStatus(booking.status))));
+  // The live socket fix is newer than the stored position whenever it exists.
+  const providerLat = fix?.lat ?? booking?.providerLat ?? null;
+  const providerLng = fix?.lng ?? booking?.providerLng ?? null;
 
   async function load() {
     const result = await api<Booking>(`/api/bookings/${id}`);
@@ -79,27 +86,45 @@ export function CustomerBookingDetail({ id }: { id: string }) {
 
   useEffect(() => {
     if (!booking || !isActiveStatus(booking.status)) return;
+    // Status changes arrive by push too; polling is only the safety net.
     const timer = window.setInterval(() => {
       load().catch(() => undefined);
-    }, 5000);
+    }, connected ? 15000 : 5000);
     return () => window.clearInterval(timer);
-  }, [booking?.status, id]);
+  }, [booking?.status, id, connected]);
 
   useEffect(() => {
-    if (!booking?.providerLat || !booking.providerLng || !booking.latitude || !booking.longitude) return;
-    const search = new URLSearchParams({
-      fromLat: String(booking.providerLat),
-      fromLng: String(booking.providerLng),
-      toLat: String(booking.latitude),
-      toLng: String(booking.longitude),
-    });
-    api<{ coordinates: [number, number][]; durationMin: number }>(`/api/geo/route?${search.toString()}`)
-      .then((result) => {
-        setRoute(result.coordinates);
-        setEta(result.durationMin);
-      })
-      .catch(() => undefined);
-  }, [booking?.providerLat, booking?.providerLng, booking?.latitude, booking?.longitude]);
+    if (providerLat == null || providerLng == null || booking?.latitude == null || booking.longitude == null) return;
+    // The routing service is a shared public server, so refresh the drawn route at most every 15 seconds.
+    const wait = lastRouteAt.current + 15000 - Date.now();
+    const timer = window.setTimeout(() => {
+      lastRouteAt.current = Date.now();
+      const search = new URLSearchParams({
+        fromLat: String(providerLat),
+        fromLng: String(providerLng),
+        toLat: String(booking.latitude),
+        toLng: String(booking.longitude),
+      });
+      api<{ coordinates: [number, number][]; durationMin: number }>(`/api/geo/route?${search.toString()}`)
+        .then((result) => {
+          setRoute(result.coordinates);
+          setEta(result.durationMin);
+        })
+        .catch(() => undefined);
+    }, Math.max(0, wait));
+    return () => window.clearTimeout(timer);
+  }, [providerLat, providerLng, booking?.latitude, booking?.longitude]);
+
+  async function reportWrongRoute() {
+    try {
+      await api(`/api/bookings/${id}/route-feedback`, { method: "POST", body: JSON.stringify({}) });
+      setRouteNotice("Your provider has been alerted and will check the route.");
+      setError("");
+    } catch (err) {
+      setRouteNotice("");
+      setError(err instanceof ApiError ? err.message : "Unable to alert your provider.");
+    }
+  }
 
   async function cancel() {
     const reasonText = cancelChoice === "Other" ? requiredText(otherReason, 200, "Tell us why you are cancelling.", "Reason") : "";
@@ -134,9 +159,9 @@ export function CustomerBookingDetail({ id }: { id: string }) {
     if (!booking) return [];
     const list = [];
     if (booking.latitude != null && booking.longitude != null) list.push({ lat: booking.latitude, lng: booking.longitude, label: "You", color: "#6f4b32" });
-    if (booking.providerLat != null && booking.providerLng != null) list.push({ lat: booking.providerLat, lng: booking.providerLng, label: booking.provider.name, color: "#1e8f4e" });
+    if (providerLat != null && providerLng != null) list.push({ lat: providerLat, lng: providerLng, label: booking.provider.name, color: "#1e8f4e" });
     return list;
-  }, [booking]);
+  }, [booking, providerLat, providerLng]);
 
   if (error && !booking) return <Screen><Banner>{error}</Banner></Screen>;
   if (!booking) return <Screen><LoadingBlock label="Loading booking..." /></Screen>;
@@ -154,8 +179,15 @@ export function CustomerBookingDetail({ id }: { id: string }) {
       {error && <div className="mt-3"><Banner>{error}</Banner></div>}
       {(booking.status === "ACCEPTED" || isActiveStatus(booking.status)) && (
         <div className="mt-4">
-          <p className="mb-2 text-sm font-semibold">{booking.status === "ON_THE_WAY" ? `${booking.provider.name} is on the way` : booking.status === "ARRIVED" ? "Your provider has arrived." : STATUS_LABEL[booking.status]}{booking.status === "ON_THE_WAY" && eta ? ` · Arriving in approximately ${eta} minutes` : ""}</p>
+          <p className="mb-2 text-sm font-semibold">{booking.status === "ON_THE_WAY" ? `${booking.provider.name} is on the way` : booking.status === "ARRIVED" ? "Your provider has arrived." : STATUS_LABEL[booking.status]}{booking.status === "ON_THE_WAY" && (eta ?? fix?.etaMinutes) ? ` · Arriving in approximately ${eta ?? fix?.etaMinutes} minutes` : ""}</p>
           {pins.length > 0 ? <MapView pins={pins} route={route} height={240} /> : <Banner tone="info">The provider has not shared a live location yet.</Banner>}
+          {fix && <p className="mt-2 text-[11px] text-muted">Live{fix.distanceKm != null ? ` · ${fix.distanceKm} km away` : ""} · updated {formatStamp(fix.at)}</p>}
+          {booking.status === "ON_THE_WAY" && (
+            <div className="mt-3">
+              {routeNotice && <Banner tone="info">{routeNotice}</Banner>}
+              <button type="button" onClick={reportWrongRoute} className="press mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full border border-line bg-card text-sm font-semibold text-brown"><TriangleAlert size={16} /> Your provider is going the wrong way</button>
+            </div>
+          )}
         </div>
       )}
       <div className="mt-4 rounded-[22px] border border-line bg-card p-4 text-sm">

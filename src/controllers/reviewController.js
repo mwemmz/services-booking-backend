@@ -1,4 +1,5 @@
 const { Review, Booking, Provider, User, Endorsement } = require('../models');
+const { safeUserAttributes } = require('../utils/safeUser');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
@@ -51,7 +52,7 @@ exports.getProviderReviews = async (req, res) => {
 
     const query = paginate({
       where: { provider_id: req.params.providerId },
-      include: [{ model: User, as: 'customer' }],
+      include: [{ model: User, as: 'customer', attributes: safeUserAttributes }],
       order: [['createdAt', 'DESC']],
     }, { page, limit });
 
@@ -87,7 +88,7 @@ exports.getReviewById = async (req, res) => {
   try {
     const review = await Review.findByPk(req.params.id, {
       include: [
-        { model: User, as: 'customer' },
+        { model: User, as: 'customer', attributes: safeUserAttributes },
         { model: Provider, as: 'provider' },
         { model: Booking, as: 'booking' },
       ],

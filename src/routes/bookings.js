@@ -15,6 +15,7 @@ const {
   getProviderSlots,
   rebookBooking,
 } = require('../controllers/bookingController');
+const { updateBookingLocation, reportWrongRoute } = require('../controllers/locationController');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const {
@@ -38,6 +39,8 @@ router.put('/:id/status', authenticate, [...updateStatusRules, validate], update
 router.put('/:id/reject', authenticate, authorize('provider'), rejectBooking);
 router.put('/:id/confirm-quote', authenticate, authorize('customer'), confirmQuote);
 router.put('/:id/cancel', authenticate, cancelBooking);
+router.put('/:id/location', authenticate, authorize('provider'), updateBookingLocation);
+router.put('/:id/route-feedback', authenticate, authorize('customer'), reportWrongRoute);
 router.post('/:id/rebook', authenticate, rebookBooking);
 
 module.exports = router;

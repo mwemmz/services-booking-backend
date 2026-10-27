@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { safeUserAttributes } = require('../utils/safeUser');
 const {
   Booking, User, Provider, Service, Payment, Crew, Review, Endorsement,
   BookingStatusHistory, Transaction,
@@ -94,7 +95,7 @@ exports.createBooking = async (req, res) => {
 
     const fullBooking = await Booking.findByPk(booking.id, {
       include: [
-        { model: User, as: 'customer' },
+        { model: User, as: 'customer', attributes: safeUserAttributes },
         { model: Provider, as: 'provider' },
         { model: Service, as: 'service' },
         { model: Crew, as: 'crew' },
@@ -205,7 +206,7 @@ exports.getAllBookings = async (req, res) => {
     const query = paginate({
       where,
       include: [
-        { model: User, as: 'customer' },
+        { model: User, as: 'customer', attributes: safeUserAttributes },
         { model: Provider, as: 'provider' },
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
@@ -228,8 +229,8 @@ exports.getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findByPk(req.params.id, {
       include: [
-        { model: User, as: 'customer' },
-        { model: Provider, as: 'provider', include: [{ model: User, as: 'user' }] },
+        { model: User, as: 'customer', attributes: safeUserAttributes },
+        { model: Provider, as: 'provider', include: [{ model: User, as: 'user', attributes: safeUserAttributes }] },
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
         { model: Crew, as: 'crew', include: [{ model: Provider, as: 'members' }] },
@@ -516,7 +517,7 @@ exports.getWorkHistory = async (req, res) => {
       Booking.findAll(paginate({
         where,
         include: [
-          { model: User, as: 'customer' },
+          { model: User, as: 'customer', attributes: safeUserAttributes },
           { model: Service, as: 'service' },
           { model: Payment, as: 'payment' },
           { model: Endorsement, as: 'endorsement' },
@@ -571,7 +572,7 @@ exports.getProviderBookings = async (req, res) => {
     const query = paginate({
       where,
       include: [
-        { model: User, as: 'customer' },
+        { model: User, as: 'customer', attributes: safeUserAttributes },
         { model: Service, as: 'service' },
         { model: Payment, as: 'payment' },
       ],
@@ -659,7 +660,7 @@ exports.rebookBooking = async (req, res) => {
 
     const fullBooking = await Booking.findByPk(booking.id, {
       include: [
-        { model: User, as: 'customer' },
+        { model: User, as: 'customer', attributes: safeUserAttributes },
         { model: Provider, as: 'provider' },
         { model: Service, as: 'service' },
         { model: Crew, as: 'crew' },

@@ -3,14 +3,26 @@ import { route, ok, readJson, HttpError } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { getAccessToken } from "@/lib/session";
+import { loadBooking } from "@/lib/booking-bff";
 
 export const dynamic = "force-dynamic";
 
 export const POST = route(async (req) => {
   const user = await requireUser("CUSTOMER");
   if (!user.customerProfile) throw new HttpError("You do not have access to this.", 403);
-  const body = z.object({ bookingId: z.string(), providerId: z.string(), rating: z.number().int().min(1).max(5), comment: z.string().max(1000).optional() }).parse(await readJson(req));
+  const body = z
+    .object({
+      bookingId: z.string(),
+      rating: z.number().int().min(1).max(5),
+      reason: z.string().max(300).optional(),
+      comment: z.string().max(1000).optional(),
+    })
+    .parse(await readJson(req));
   const token = await getAccessToken();
-  const res = await apiFetch("/reviews", { method: "POST", body, token });
-  return ok(res, 201);
+  await apiFetch("/reviews", {
+    method: "POST",
+    token,
+    body: { booking_id: body.bookingId, rating: body.rating, comment: body.comment ?? body.reason ?? "" },
+  });
+  return ok(await loadBooking(body.bookingId, token, "CUSTOMER"), 201);
 });

@@ -1,4 +1,5 @@
 const { Crew, CrewMember, Provider, User } = require('../models');
+const { safeUserAttributes } = require('../utils/safeUser');
 
 exports.createCrew = async (req, res) => {
   try {
@@ -16,7 +17,7 @@ exports.createCrew = async (req, res) => {
     }
 
     const full = await Crew.findByPk(crew.id, {
-      include: [{ model: Provider, as: 'members', include: [{ model: User, as: 'user' }] }],
+      include: [{ model: Provider, as: 'members', include: [{ model: User, as: 'user', attributes: safeUserAttributes }] }],
     });
     return res.status(201).json({ message: 'Crew created.', crew: full });
   } catch (error) {
@@ -31,7 +32,7 @@ exports.getMyCrews = async (req, res) => {
 
     const crews = await Crew.findAll({
       where: { leader_id: provider.id },
-      include: [{ model: Provider, as: 'members', include: [{ model: User, as: 'user' }] }],
+      include: [{ model: Provider, as: 'members', include: [{ model: User, as: 'user', attributes: safeUserAttributes }] }],
     });
     return res.json({ crews });
   } catch (error) {
@@ -42,7 +43,7 @@ exports.getMyCrews = async (req, res) => {
 exports.getCrewById = async (req, res) => {
   try {
     const crew = await Crew.findByPk(req.params.id, {
-      include: [{ model: Provider, as: 'members', include: [{ model: User, as: 'user' }] }],
+      include: [{ model: Provider, as: 'members', include: [{ model: User, as: 'user', attributes: safeUserAttributes }] }],
     });
     if (!crew) return res.status(404).json({ message: 'Crew not found.' });
     return res.json({ crew });

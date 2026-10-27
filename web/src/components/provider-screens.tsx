@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, Bell, Briefcase, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Coins, LayoutDashboard, LogOut, Menu, MessageCircle, MoreVertical, Navigation, Paintbrush, Plus, Scissors, Settings, Sparkles, Star, UserRound, Wallet, Wrench, X } from "lucide-react";
 import { ApiError, api, uploadImage } from "@/lib/client";
 import { firstName, formatDuration, formatStamp, formatWhen, greeting, kwacha, splitDuration, weekdayName } from "@/lib/format";
@@ -13,6 +13,7 @@ import type { Booking, Category } from "@/lib/types";
 import dynamic from "next/dynamic";
 import { useApp } from "./shell";
 import { useSocket } from "@/contexts/socket-context";
+import { metresOffRoute } from "@/lib/use-live-tracking";
 import { ServiceChoices } from "./service-choices";
 import { Gate, useFormGate } from "./form-gate";
 import { Avatar, BackLink, Banner, Button, EmptyState, Field, LoadingBlock, Modal, Screen, Stars, StatusPill, TextInput, Verified } from "./ui";
@@ -901,11 +902,31 @@ export function ProviderJob({ id }: { id: string }) {
   const [sharing, setSharing] = useState(false);
   const [route, setRoute] = useState<[number, number][]>([]);
   const [eta, setEta] = useState<number | null>(null);
+  const [alert, setAlert] = useState("");
+  const [offRoute, setOffRoute] = useState(false);
+  const lastRouteAt = useRef(0);
+  const { socket } = useSocket();
 
   async function load() {
     setBooking(await api<Booking>(`/api/bookings/${id}`));
   }
   useEffect(() => { load().catch(() => setError("Unable to load this request.")); }, [id]);
+
+  // The customer can flag a wrong turn; it lands here instantly instead of waiting for a phone call.
+  useEffect(() => {
+    if (!socket) return;
+    const onFeedback = (data: { bookingId: string; message: string }) => {
+      if (data.bookingId === id) setAlert(data.message);
+    };
+    const onStatus = () => { load().catch(() => undefined); };
+    socket.emit("join-booking", id);
+    socket.on("route-feedback", onFeedback);
+    socket.on("booking-status-update", onStatus);
+    return () => {
+      socket.off("route-feedback", onFeedback);
+      socket.off("booking-status-update", onStatus);
+    };
+  }, [socket, id]);
 
   useEffect(() => {
     if (!sharing || !booking || !canShareLocation(booking.status)) return;
@@ -913,8 +934,14 @@ export function ProviderJob({ id }: { id: string }) {
       try {
         setBooking(await api(`/api/bookings/${id}/location`, {
           method: "POST",
-          body: JSON.stringify({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+          body: JSON.stringify({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            heading: position.coords.heading,
+          }),
         }));
+        setError("");
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Unable to share your location.");
       }
@@ -924,16 +951,26 @@ export function ProviderJob({ id }: { id: string }) {
 
   useEffect(() => {
     if (!booking?.latitude || !booking.longitude || !booking.providerLat || !booking.providerLng) return;
-    const search = new URLSearchParams({
-      fromLat: String(booking.providerLat),
-      fromLng: String(booking.providerLng),
-      toLat: String(booking.latitude),
-      toLng: String(booking.longitude),
-    });
-    api<{ coordinates: [number, number][]; durationMin: number }>(`/api/geo/route?${search}`).then((result) => {
-      setRoute(result.coordinates);
-      setEta(result.durationMin);
-    }).catch(() => undefined);
+    const lat = booking.providerLat;
+    const lng = booking.providerLng;
+    // Automatic check: more than 250 m from the drawn route means the driver has left it.
+    if (route.length > 1) setOffRoute(metresOffRoute([lat, lng], route) > 250);
+    const wait = lastRouteAt.current + 15000 - Date.now();
+    const timer = window.setTimeout(() => {
+      lastRouteAt.current = Date.now();
+      const search = new URLSearchParams({
+        fromLat: String(lat),
+        fromLng: String(lng),
+        toLat: String(booking.latitude),
+        toLng: String(booking.longitude),
+      });
+      api<{ coordinates: [number, number][]; durationMin: number }>(`/api/geo/route?${search}`).then((result) => {
+        setRoute(result.coordinates);
+        setEta(result.durationMin);
+        setOffRoute(false);
+      }).catch(() => undefined);
+    }, Math.max(0, wait));
+    return () => window.clearTimeout(timer);
   }, [booking?.providerLat, booking?.providerLng, booking?.latitude, booking?.longitude]);
 
   async function act(path: string, body?: object) {
@@ -967,6 +1004,8 @@ export function ProviderJob({ id }: { id: string }) {
         <StatusPill status={booking.status} label={STATUS_LABEL[booking.status]} />
       </div>
       {error && <div className="mt-3"><Banner>{error}</Banner></div>}
+      {alert && <div className="mt-3"><Banner>Route alert: {alert} <button type="button" className="ml-2 font-semibold underline" onClick={() => setAlert("")}>Dismiss</button></Banner></div>}
+      {!alert && offRoute && booking.status === "ON_THE_WAY" && <div className="mt-3"><Banner tone="info">You appear to be off the planned route. A new route is being calculated.</Banner></div>}
       <div className="mt-4 flex items-center gap-3 rounded-[22px] border border-line bg-card p-3">
         <Avatar src={booking.customer.avatarUrl} name={booking.customer.name} />
         <div>
