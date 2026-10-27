@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 import { Phone, TriangleAlert } from "lucide-react";
 import { ApiError, api } from "@/lib/client";
 import { messageText, requiredText } from "@/lib/validate";
@@ -28,6 +29,7 @@ export function CustomerBookings() {
   useEffect(() => {
     api<Booking[]>("/api/bookings").then(setBookings).catch(() => setError("Unable to load bookings. Please try again."));
   }, []);
+  useLiveRefresh(() => { api<Booking[]>("/api/bookings").then(setBookings).catch(() => undefined); });
   const visible = bookings?.filter((booking) => tabs.find((item) => item.id === tab)?.statuses.includes(booking.status)) ?? [];
   return (
     <Screen>
@@ -83,6 +85,7 @@ export function CustomerBookingDetail({ id }: { id: string }) {
   useEffect(() => {
     load().catch(() => setError("Unable to load this booking. Please try again."));
   }, [id]);
+  useLiveRefresh(() => { load().catch(() => undefined); });
 
   useEffect(() => {
     if (!booking || !isActiveStatus(booking.status)) return;
@@ -255,6 +258,7 @@ export function MessageList({ base }: { base: string }) {
   useEffect(() => {
     api<Thread[]>("/api/messages").then(setThreads).catch(() => setError("Unable to load messages. Please try again."));
   }, []);
+  useLiveRefresh(() => { api<Thread[]>("/api/messages").then(setThreads).catch(() => undefined); });
   return (
     <Screen>
       <h1 className="font-display text-[2rem]">Messages</h1>
@@ -295,9 +299,10 @@ export function ChatThread({ bookingId, back }: { bookingId: string; back: strin
 
   useEffect(() => {
     load().catch(() => setError("Unable to load this conversation."));
-    const timer = window.setInterval(() => load().catch(() => undefined), 4000);
+    const timer = window.setInterval(() => load().catch(() => undefined), 15000);
     return () => window.clearInterval(timer);
   }, [bookingId]);
+  useLiveRefresh(() => { load().catch(() => undefined); }, ["message:new"]);
 
   async function send(event: React.FormEvent) {
     event.preventDefault();

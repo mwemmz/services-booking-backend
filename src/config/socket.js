@@ -125,4 +125,9 @@ const emitToBooking = (bookingId, event, payload) => {
   if (io) io.to(`booking:${bookingId}`).emit(event, payload);
 };
 
-module.exports = { initSocket, getIO, emitToUser, emitToBooking };
+/** Tell every connected client something public changed, such as a provider or service being listed. */
+const emitAll = (event, payload = {}) => {
+  if (io) io.emit(event, payload);
+};
+
+module.exports = { initSocket, getIO, emitToUser, emitToBooking, emitAll };

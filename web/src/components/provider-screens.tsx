@@ -13,6 +13,7 @@ import type { Booking, Category } from "@/lib/types";
 import dynamic from "next/dynamic";
 import { useApp } from "./shell";
 import { useSocket } from "@/contexts/socket-context";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 import { metresOffRoute } from "@/lib/use-live-tracking";
 import { ServiceChoices } from "./service-choices";
 import { Gate, useFormGate } from "./form-gate";
@@ -839,6 +840,7 @@ export function ProviderBookings() {
     if (requested === "requests" || requested === "active" || requested === "history") setTab(requested);
   }, [requested]);
   useEffect(() => { api<Booking[]>("/api/bookings").then(setRows).catch(() => setError("Unable to load bookings.")); }, []);
+  useLiveRefresh(() => { api<Booking[]>("/api/bookings").then(setRows).catch(() => undefined); });
   const groups: Record<string, string[]> = {
     requests: ["PENDING"],
     active: ["ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS"],

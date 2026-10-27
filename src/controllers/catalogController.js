@@ -49,8 +49,6 @@ const withCatalogServices = {
       required: false,
       where: { is_active: true },
       attributes: ['id'],
-      // Only verified providers are listed to customers, so only they count towards "N providers".
-      include: [{ model: Provider, as: 'provider', required: true, attributes: [], where: { is_verified: true } }],
     },
   ],
 };
@@ -137,7 +135,7 @@ exports.listProvidersForService = async (req, res) => {
     }
 
     const providers = await Provider.findAll({
-      where: { is_verified: true },
+      where: {},
       include: [
         { model: User, as: 'user', attributes: ['id', 'name', 'profile_image'] },
         {
@@ -322,7 +320,7 @@ const storefrontServiceInclude = ({ service, category }) => {
 exports.listStorefrontProviders = async (req, res) => {
   try {
     const { category, service, q } = req.query;
-    const where = { is_verified: true };
+    const where = {};
 
     const providers = await Provider.findAll({
       where,

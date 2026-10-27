@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { Heart, MapPin, Search } from "lucide-react";
 import { ApiError, api } from "@/lib/client";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 import { formatDuration, kwacha, weekdayName } from "@/lib/format";
 import { searchQuery } from "@/lib/validate";
 import type { Category, ProviderCard, ServiceItem } from "@/lib/types";
@@ -50,6 +51,7 @@ export function CategoryDetail({ slug }: { slug: string }) {
   useEffect(() => {
     api<Category>(`/api/categories/${slug}`).then(setCategory).catch(() => setError("Unable to load this category. Please try again."));
   }, [slug]);
+  useLiveRefresh(() => { api<Category>(`/api/categories/${slug}`).then(setCategory).catch(() => undefined); }, ["catalog-updated"]);
   return (
     <Screen>
       <BackLink href="/customer/categories" />
@@ -121,7 +123,7 @@ export function SearchScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function fetchProviders(quiet: boolean) {
     const coords = readCoords();
     const search = new URLSearchParams();
     if (service) search.set("service", service);
@@ -130,8 +132,10 @@ export function SearchScreen() {
       search.set("lat", String(coords.lat));
       search.set("lng", String(coords.lng));
     }
-    setLoading(true);
-    setError("");
+    if (!quiet) {
+      setLoading(true);
+      setError("");
+    }
     const request = service
       ? api<ProviderCard[]>(`/api/providers?${search.toString()}`).then((rows) => {
           setProviders(rows);
@@ -142,8 +146,12 @@ export function SearchScreen() {
           setServices(result.services);
           setCategories(result.categories);
         });
-    request.catch(() => setError("Unable to load providers. Please try again.")).finally(() => setLoading(false));
-  }, [initial, service]);
+    request.catch(() => { if (!quiet) setError("Unable to load providers. Please try again."); }).finally(() => setLoading(false));
+  }
+
+  useEffect(() => { fetchProviders(false); }, [initial, service]); // eslint-disable-line react-hooks/exhaustive-deps
+  // New providers and services appear without a refresh.
+  useLiveRefresh(() => fetchProviders(true), ["catalog-updated"]);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();

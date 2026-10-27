@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { Service, Provider, CatalogService, Category } = require('../models');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
+const { emitAll } = require('../config/socket');
 
 exports.createService = async (req, res) => {
   try {
@@ -21,6 +22,7 @@ exports.createService = async (req, res) => {
       catalog_service_id: req.body.catalog_service_id ?? null,
     });
 
+    emitAll('catalog-updated');
     return res.status(201).json({ message: 'Service created.', service });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to create service.', error: error.message });
@@ -112,6 +114,7 @@ exports.updateService = async (req, res) => {
     }
 
     await service.update(updates);
+    emitAll('catalog-updated');
 
     return res.json({
       message: 'Service updated.',
@@ -135,6 +138,7 @@ exports.deleteService = async (req, res) => {
     }
 
     await service.update({ is_active: false });
+    emitAll('catalog-updated');
 
     return res.json({ message: 'Service deactivated.' });
   } catch (error) {
