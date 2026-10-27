@@ -245,7 +245,13 @@ export function ProviderHome() {
               <Plus size={14} /> Add service
             </button>
           </div>
-          {data.services.length === 0 && <p className="text-sm text-muted">Add every service you offer. One account can hold all of them.</p>}
+          {data.services.length === 0 && (
+            <div className="rounded-[18px] border border-gold bg-gold-soft p-3 text-sm">
+              <p className="font-semibold text-[#2a1c12]">Customers can&apos;t book you yet</p>
+              <p className="mt-0.5 text-muted">Add the services you offer and their prices. They appear to customers as soon as you save the first one.</p>
+              <button type="button" onClick={openAdd} className="mt-2 inline-flex h-9 items-center gap-1 rounded-full bg-forest px-4 text-xs font-semibold text-white"><Plus size={14} /> Add your first service</button>
+            </div>
+          )}
           <div className="space-y-3">
             {data.services.map((service) => {
               const mark = serviceMark(service.name, service.category);
