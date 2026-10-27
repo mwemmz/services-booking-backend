@@ -88,16 +88,17 @@ export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }:
   );
 
   return (
-    <div className="relative h-full overflow-hidden bg-[#3a2418]">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[center_22%]" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/60" />
-      <div className="relative flex h-full flex-col">
-        <div className="px-6 pt-20">
-          <h1 className="font-display text-[2rem] leading-[1.05] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">Skilled work when you need it</h1>
-          <p className="mt-2 text-sm text-white/90">Book beauty, handy work and cleaning from people near you.</p>
+    <div className="flex h-full flex-col overflow-y-auto bg-cream">
+      <div className="relative min-h-[210px] flex-1 overflow-hidden bg-[#3a2418]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[center_15%]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/55" />
+        <div className="relative flex h-full flex-col justify-end px-6 pb-9 pt-24">
+          <h1 className="font-display text-[1.75rem] leading-[1.08] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">Skilled work when you need it</h1>
+          <p className="mt-1.5 text-sm text-white/90">Book beauty, handy work and cleaning from people near you.</p>
         </div>
-        <div className="mt-auto max-h-[78%] overflow-y-auto rounded-t-[30px] bg-cream px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-12px_40px_rgba(0,0,0,0.25)]">
+      </div>
+      <div className="relative -mt-6 shrink-0 rounded-t-[30px] bg-cream px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
           <div className="flex gap-1 rounded-full bg-sand p-1">{tab("signin", "Sign in")}{tab("signup", "Create account")}</div>
           <form onSubmit={submit} className="mt-4 space-y-3.5" noValidate>
             {error && <Banner>{error}</Banner>}
@@ -138,7 +139,6 @@ export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }:
               </>
             )}
           </form>
-        </div>
       </div>
     </div>
   );
