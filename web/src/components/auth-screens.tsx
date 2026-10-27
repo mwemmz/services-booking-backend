@@ -1,165 +1,151 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ApiError, api, uploadImage } from "@/lib/client";
 import { confirmPassword as passwordsMatch, emailAddress, imageFileProblem, passwordValue, personName, phoneLocal, resetCode } from "@/lib/validate";
 import { Gate, useFormGate } from "./form-gate";
 import { BackLink, Banner, Button, Field, PasswordField, PhoneField, TextInput } from "./ui";
 
-export function LoginScreen({ role }: { role: "CUSTOMER" | "PROVIDER" | "ADMIN" }) {
+type Mode = "signin" | "signup";
+type SignupRole = "CUSTOMER" | "PROVIDER";
+
+/**
+ * The only auth screen. Signing in asks for nothing but a phone number or email
+ * and a password; the account's stored role decides which side of the app opens.
+ * Creating an account asks for three fields and one choice, then lands inside
+ * the app, so nobody has to pick a role in order to log in or move through
+ * separate start, login and register pages.
+ */
+export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }: { initialMode?: Mode; initialRole?: SignupRole }) {
   const router = useRouter();
-  const isAdmin = role === "ADMIN";
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const home = role === "ADMIN" ? "/admin/dashboard" : (role === "CUSTOMER" ? "/customer/home" : "/provider/home");
-  const loginPath = role === "ADMIN" ? "/api/auth/admin/login" : (role === "CUSTOMER" ? "/api/auth/customer/login" : "/api/auth/provider/login");
-  const title = role === "ADMIN" ? "Admin Sign In" : (role === "CUSTOMER" ? "Customer Sign In" : "Service Provider Sign In");
-  const subtitle = role === "ADMIN" ? "Log in to access the admin dashboard." : (role === "CUSTOMER" ? "Log in to book a service." : "Log in to manage jobs and requests.");
-  const forgotHref = role === "CUSTOMER" ? "/customer/forgot" : "/provider/forgot";
-  const signupHref = role === "CUSTOMER" ? "/customer/register" : "/provider/register";
-  const gate = useFormGate([
-    ...(isAdmin
-      ? [{ id: "email", message: emailAddress(email) }]
-      : [{ id: "phone", message: phoneLocal(phone) }]),
-    { id: "password", message: passwordValue(password) },
-  ]);
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (gate.blockSubmit()) return;
-    setLoading(true);
-    setError("");
-    try {
-      await api(loginPath, {
-        method: "POST",
-        body: JSON.stringify(isAdmin ? { email, password } : { phone, password }),
-      });
-      router.replace(home);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="h-full overflow-y-auto px-6 py-8">
-      <BackLink href={isAdmin ? "/" : "/choose-role"} />
-      <h1 className="mt-5 font-display text-[2rem] leading-none">{title}</h1>
-      <p className="mt-2 text-sm text-muted">{subtitle}</p>
-      <form onSubmit={submit} className="mt-6 space-y-4">
-        {error && <Banner>{error}</Banner>}
-        {isAdmin ? (
-          <Gate id="email" gate={gate}><Field label="Email address" error={gate.error("email")}><TextInput type="email" inputMode="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" {...gate.input("email")} /></Field></Gate>
-        ) : (
-          <Gate id="phone" gate={gate}><Field label="Phone number" error={gate.error("phone")}><PhoneField value={phone} onChange={setPhone} {...gate.input("phone")} /></Field></Gate>
-        )}
-        <Gate id="password" gate={gate}><Field label="Password" error={gate.error("password")}><PasswordField value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" {...gate.input("password")} /></Field></Gate>
-        {!isAdmin && (
-          <div className="text-right">
-            <Link href={forgotHref} className="link-blue text-sm font-semibold">Forgot password?</Link>
-          </div>
-        )}
-        <Button type="submit" loading={loading}>Log In</Button>
-      </form>
-      {!isAdmin && (
-        <p className="mt-6 text-center text-sm text-muted">
-          New here?{" "}
-          <Link href={signupHref} className="link-blue font-semibold">Sign up</Link>
-        </p>
-      )}
-    </div>
-  );
-}
-
-export function CustomerRegister() {
-  const router = useRouter();
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [role, setRole] = useState<SignupRole>(initialRole);
+  const [identifier, setIdentifier] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [photoError, setPhotoError] = useState("");
   const [loading, setLoading] = useState(false);
-  const gate = useFormGate([
+
+  const identifierProblem = () => {
+    const text = identifier.trim();
+    if (!text) return "Enter your phone number or email.";
+    if (text.includes("@")) return emailAddress(text);
+    return phoneLocal(text.replace(/\D/g, "").replace(/^260/, ""));
+  };
+  const signinGate = useFormGate([
+    { id: "identifier", message: identifierProblem() },
+    { id: "password", message: passwordValue(password) },
+  ]);
+  const signupGate = useFormGate([
     { id: "name", message: personName(fullName) },
     { id: "phone", message: phoneLocal(phone) },
     { id: "password", message: passwordValue(password) },
-    { id: "confirm", message: passwordsMatch(confirmPassword, password) },
-    { id: "photo", message: photoError },
   ]);
-
-  async function onFile(file?: File) {
-    if (!file) return;
-    const problem = imageFileProblem(file);
-    if (problem) {
-      setPhotoError(problem);
-      setAvatarUrl(null);
-      return;
-    }
-    try {
-      setPhotoError("");
-      setAvatarUrl(await uploadImage(file));
-    } catch (err) {
-      setPhotoError(err instanceof ApiError ? err.message : "Unable to upload that photo.");
-    }
-  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    const gate = mode === "signin" ? signinGate : signupGate;
     if (gate.blockSubmit()) return;
     setLoading(true);
     setError("");
     try {
-      await api("/api/auth/customer/register", {
-        method: "POST",
-        body: JSON.stringify({ fullName, phone, password, confirmPassword, avatarUrl }),
-      });
-      router.replace("/customer/home");
+      const result = await api<{ home: string }>(
+        mode === "signin" ? "/api/session/login" : "/api/session/signup",
+        {
+          method: "POST",
+          body: JSON.stringify(mode === "signin" ? { identifier: identifier.trim(), password } : { role, fullName, phone, password }),
+        },
+      );
+      router.replace(result.home);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to create your account.");
-    } finally {
+      setError(err instanceof ApiError ? err.message : mode === "signin" ? "Login failed" : "Unable to create your account.");
       setLoading(false);
     }
   }
 
+  const tab = (value: Mode, label: string) => (
+    <button
+      type="button"
+      onClick={() => { setMode(value); setError(""); }}
+      className={`h-11 flex-1 rounded-full text-sm font-semibold transition ${mode === value ? "bg-forest text-white" : "text-[#4a3120]"}`}
+    >
+      {label}
+    </button>
+  );
+  const choice = (value: SignupRole, title: string, hint: string) => (
+    <button
+      type="button"
+      onClick={() => setRole(value)}
+      aria-pressed={role === value}
+      className={`flex-1 rounded-[18px] border px-3 py-2.5 text-left transition ${role === value ? "border-forest bg-forest/10 ring-2 ring-forest/20" : "border-line bg-card"}`}
+    >
+      <span className="block text-sm font-semibold text-[#3a2a22]">{title}</span>
+      <span className="block text-[11px] leading-tight text-muted">{hint}</span>
+    </button>
+  );
+
   return (
-    <div className="h-full overflow-y-auto px-6 py-8">
-      <BackLink href="/choose-role" />
-      <h1 className="mt-5 font-display text-[2rem] leading-none">Create Customer Account</h1>
-      <p className="mt-2 text-sm text-muted">Book beauty, repairs, and cleaning. You can add a location when you book.</p>
-      <form onSubmit={submit} className="mt-6 space-y-4">
-        {error && <Banner>{error}</Banner>}
-        <Gate id="name" gate={gate}><Field label="Full name" error={gate.error("name")}><TextInput value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Your full name" {...gate.input("name")} /></Field></Gate>
-        <Gate id="phone" gate={gate}><Field label="Phone number" error={gate.error("phone")}><PhoneField value={phone} onChange={setPhone} {...gate.input("phone")} /></Field></Gate>
-        <Gate id="password" gate={gate}><Field label="Password" error={gate.error("password")}><PasswordField value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" {...gate.input("password")} /></Field></Gate>
-        <Gate id="confirm" gate={gate}><Field label="Confirm password" error={gate.error("confirm")}><PasswordField value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat password" {...gate.input("confirm")} /></Field></Gate>
-        <Gate id="photo" gate={gate}>
-          <label className="btn-3d btn-3d-light flex h-12 cursor-pointer items-center justify-center rounded-full text-sm font-semibold text-[#4a3120]">
-            {avatarUrl ? "Profile photo added ✓" : "Add a profile photo, optional"}
-            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { onFile(event.target.files?.[0]); event.target.value = ""; }} />
-          </label>
-          {(photoError || gate.error("photo")) && <span className="mt-1 block text-xs text-danger">{photoError || gate.error("photo")}</span>}
-        </Gate>
-        {avatarUrl && <img src={avatarUrl} alt="" className="h-16 w-16 rounded-full object-cover" />}
-        <Button type="submit" loading={loading}>Sign up</Button>
-      </form>
-      <p className="mt-6 text-center text-sm text-muted">
-        Already have an account? <Link href="/customer/login" className="link-blue font-semibold">Sign in</Link>
-      </p>
+    <div className="relative h-full overflow-hidden bg-[#3a2418]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[center_22%]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/60" />
+      <div className="relative flex h-full flex-col">
+        <div className="px-6 pt-20">
+          <h1 className="font-display text-[2rem] leading-[1.05] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">Skilled work when you need it</h1>
+          <p className="mt-2 text-sm text-white/90">Book beauty, handy work and cleaning from people near you.</p>
+        </div>
+        <div className="mt-auto max-h-[78%] overflow-y-auto rounded-t-[30px] bg-cream px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-12px_40px_rgba(0,0,0,0.25)]">
+          <div className="flex gap-1 rounded-full bg-sand p-1">{tab("signin", "Sign in")}{tab("signup", "Create account")}</div>
+          <form onSubmit={submit} className="mt-4 space-y-3.5" noValidate>
+            {error && <Banner>{error}</Banner>}
+            {mode === "signin" ? (
+              <>
+                <Gate id="identifier" gate={signinGate}>
+                  <Field label="Phone number or email" error={signinGate.error("identifier")}>
+                    <TextInput value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" placeholder="097 1234567 or you@example.com" {...signinGate.input("identifier")} />
+                  </Field>
+                </Gate>
+                <Gate id="password" gate={signinGate}>
+                  <Field label="Password" error={signinGate.error("password")}>
+                    <PasswordField value={password} autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} placeholder="Password" {...signinGate.input("password")} />
+                  </Field>
+                </Gate>
+                <div className="text-right"><Link href="/customer/forgot" className="link-blue text-sm font-semibold">Forgot password?</Link></div>
+                <Button type="submit" loading={loading}>Log in</Button>
+              </>
+            ) : (
+              <>
+                <div className="flex gap-2">{choice("CUSTOMER", "I need a service", "Find and book providers")}{choice("PROVIDER", "I offer a service", "Get booking requests")}</div>
+                <Gate id="name" gate={signupGate}>
+                  <Field label="Full name" error={signupGate.error("name")}>
+                    <TextInput value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" placeholder="Your full name" {...signupGate.input("name")} />
+                  </Field>
+                </Gate>
+                <Gate id="phone" gate={signupGate}>
+                  <Field label="Phone number" error={signupGate.error("phone")}>
+                    <PhoneField value={phone} onChange={setPhone} {...signupGate.input("phone")} />
+                  </Field>
+                </Gate>
+                <Gate id="password" gate={signupGate}>
+                  <Field label="Password" error={signupGate.error("password")}>
+                    <PasswordField value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" {...signupGate.input("password")} />
+                  </Field>
+                </Gate>
+                <Button type="submit" loading={loading}>{role === "PROVIDER" ? "Create provider account" : "Create account"}</Button>
+              </>
+            )}
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
 
 export function ForgotScreen() {
-  const pathname = usePathname();
-  const loginHref = pathname.startsWith("/provider") ? "/provider/login" : "/customer/login";
+  const loginHref = "/";
   const [step, setStep] = useState<1 | 2>(1);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");

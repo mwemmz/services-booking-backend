@@ -1,9 +1,30 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ROLE_COOKIE, TOKEN_COOKIE } from "@/lib/cookieNames";
 
-const customerPublic = new Set(["/customer/start", "/customer/login", "/customer/register", "/customer/forgot"]);
-const providerPublic = new Set(["/provider/start", "/provider/login", "/provider/register", "/provider/forgot"]);
-const adminPublic = new Set(["/admin/login"]);
+type Role = "CUSTOMER" | "PROVIDER" | "ADMIN";
+
+const homeFor = (role: Role) => (role === "ADMIN" ? "/admin/dashboard" : role === "PROVIDER" ? "/provider/home" : "/customer/home");
+
+/** Pages signed-out people may open besides the entry screen. */
+const publicPages = new Set(["/customer/forgot", "/provider/forgot"]);
+
+/**
+ * Former separate start, login and register pages. They all collapse into the
+ * entry screen at "/", which signs everyone in and decides the side from the
+ * account itself; sign-up links keep their intent through the query string.
+ */
+const legacyAuth = new Map<string, string>([
+  ["/choose-role", "/"],
+  ["/login", "/"],
+  ["/register", "/?mode=signup"],
+  ["/customer/start", "/"],
+  ["/customer/login", "/"],
+  ["/customer/register", "/?mode=signup"],
+  ["/provider/start", "/"],
+  ["/provider/login", "/"],
+  ["/provider/register", "/?mode=signup&role=provider"],
+  ["/admin/login", "/"],
+]);
 
 /**
  * Page gating only. The cookie cannot be verified here (Edge runtime, and the
@@ -14,52 +35,25 @@ const adminPublic = new Set(["/admin/login"]);
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasToken = Boolean(request.cookies.get(TOKEN_COOKIE)?.value);
-  const role = request.cookies.get(ROLE_COOKIE)?.value;
-  const signedIn = hasToken && (role === "CUSTOMER" || role === "PROVIDER" || role === "ADMIN");
-  const session = signedIn ? { role } : null;
+  const cookieRole = request.cookies.get(ROLE_COOKIE)?.value;
+  const role: Role | null =
+    hasToken && (cookieRole === "CUSTOMER" || cookieRole === "PROVIDER" || cookieRole === "ADMIN") ? cookieRole : null;
 
-  if (pathname === "/" || pathname === "/choose-role") {
-    if (!session) return NextResponse.next();
-    return NextResponse.redirect(
-      new URL(session.role === "ADMIN" ? "/admin/dashboard" : session.role === "PROVIDER" ? "/provider/home" : "/customer/home", request.url),
-    );
+  const entry = pathname === "/" || legacyAuth.has(pathname);
+  if (entry) {
+    if (role) return NextResponse.redirect(new URL(homeFor(role), request.url));
+    if (pathname === "/") return NextResponse.next();
+    return NextResponse.redirect(new URL(legacyAuth.get(pathname)!, request.url));
   }
 
-  if (pathname.startsWith("/admin")) {
-    if (adminPublic.has(pathname)) {
-      if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-      if (session?.role === "CUSTOMER") return NextResponse.redirect(new URL("/customer/home", request.url));
-      if (session?.role === "PROVIDER") return NextResponse.redirect(new URL("/provider/home", request.url));
-      return NextResponse.next();
-    }
-    if (session?.role !== "ADMIN") return NextResponse.redirect(new URL("/admin/login", request.url));
-    return NextResponse.next();
+  if (publicPages.has(pathname)) {
+    return role ? NextResponse.redirect(new URL(homeFor(role), request.url)) : NextResponse.next();
   }
 
-  if (pathname.startsWith("/customer") || pathname.startsWith("/provider")) {
-    if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-  }
-
-  if (pathname.startsWith("/customer")) {
-    if (customerPublic.has(pathname)) {
-      if (session?.role === "CUSTOMER") return NextResponse.redirect(new URL("/customer/home", request.url));
-      if (session?.role === "PROVIDER") return NextResponse.redirect(new URL("/provider/home", request.url));
-      return NextResponse.next();
-    }
-    if (session?.role !== "CUSTOMER") {
-      return NextResponse.redirect(new URL("/customer/login", request.url));
-    }
-  }
-
-  if (pathname.startsWith("/provider")) {
-    if (providerPublic.has(pathname)) {
-      if (session?.role === "PROVIDER") return NextResponse.redirect(new URL("/provider/home", request.url));
-      if (session?.role === "CUSTOMER") return NextResponse.redirect(new URL("/customer/home", request.url));
-      return NextResponse.next();
-    }
-    if (session?.role !== "PROVIDER") {
-      return NextResponse.redirect(new URL("/provider/login", request.url));
-    }
+  const area = pathname.startsWith("/admin") ? "ADMIN" : pathname.startsWith("/provider") ? "PROVIDER" : pathname.startsWith("/customer") ? "CUSTOMER" : null;
+  if (area) {
+    if (!role) return NextResponse.redirect(new URL("/", request.url));
+    if (role !== area) return NextResponse.redirect(new URL(homeFor(role), request.url));
   }
 
   return NextResponse.next();

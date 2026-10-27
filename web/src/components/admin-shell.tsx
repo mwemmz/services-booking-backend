@@ -32,7 +32,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       .then((data) => {
         if (stop) return;
         if (data.role !== "ADMIN") {
-          router.replace("/admin/login");
+          router.replace("/");
           return;
         }
         setMe(data);
@@ -40,7 +40,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       .catch((err) => {
         if (stop) return;
         if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-          router.replace("/admin/login");
+          router.replace("/");
           return;
         }
         setError(err instanceof ApiError ? err.message : "Unable to open the admin console.");
@@ -52,7 +52,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    router.replace("/admin/login");
+    router.replace("/");
   }
 
   return (

@@ -53,7 +53,7 @@ export function AppShell({ role, children }: { role: "CUSTOMER" | "PROVIDER"; ch
   useEffect(() => {
     let stop = false;
     refresh().catch(() => {
-      if (!stop) router.replace(role === "PROVIDER" ? "/provider/login" : "/customer/login");
+      if (!stop) router.replace("/");
     });
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") refresh().catch(() => undefined);

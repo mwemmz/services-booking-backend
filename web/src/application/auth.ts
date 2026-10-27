@@ -59,6 +59,53 @@ export async function registerCustomer(input: { name: string; email: string; pho
   return { role: "CUSTOMER" as const, userId: res.user.id };
 }
 
+/**
+ * One-screen sign-up: a name, a phone number and a password are enough to start
+ * using the app. The API still keys accounts on email, so people who only give
+ * a phone number get a reserved-domain placeholder address that can never
+ * receive mail; they sign in with the phone number as usual. Providers also get
+ * a starter profile so their screens work straight away, and add services and
+ * documents from inside the app.
+ */
+export async function registerQuick(input: {
+  role: "CUSTOMER" | "PROVIDER";
+  name: string;
+  phone: string;
+  password: string;
+  email?: string;
+}) {
+  const email = input.email?.trim() || `${input.phone.replace(/\D/g, "")}@phone.zamserve.invalid`;
+  const res = await apiFetch<{ accessToken: string; refreshToken: string; user: { id: string; role: string } }>(
+    "/auth/register",
+    {
+      method: "POST",
+      body: {
+        name: input.name,
+        email,
+        phone: input.phone,
+        password: input.password,
+        role: input.role === "PROVIDER" ? "provider" : "customer",
+      },
+    },
+  );
+  const tokens = { accessToken: res.accessToken, refreshToken: res.refreshToken };
+
+  if (input.role === "PROVIDER") {
+    try {
+      await apiFetch("/providers", {
+        method: "POST",
+        token: tokens.accessToken,
+        body: { business_name: input.name, category: "General" },
+      });
+    } catch {
+      throw new HttpError("Your account was created, but we could not finish setting it up. Try signing in.", 500);
+    }
+  }
+
+  await setSession(tokens, res.user);
+  return { role: input.role, userId: res.user.id };
+}
+
 export type ProviderOnboarding = {
   name: string;
   email: string;
