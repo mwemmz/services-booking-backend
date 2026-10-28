@@ -16,9 +16,9 @@ services:
       # Combined host: Express API and the Next web app are one service, so
       # CORS, Socket.IO and email links all point at this same origin.
       - key: CLIENT_URL
-        value: https://services-booking-backend-3wbl.onrender.com
+        value: https://services-booking-backend-c9sr.onrender.com
       - key: FRONTEND_URL
-        value: https://services-booking-backend-3wbl.onrender.com
+        value: https://services-booking-backend-c9sr.onrender.com
       # The BFF calls back over loopback inside this same process.
       - key: API_BASE_URL
         value: http://localhost:3000/api
