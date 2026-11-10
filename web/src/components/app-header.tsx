@@ -11,7 +11,7 @@ export function AppHeader() {
     <div className={welcome
       ? "absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-4 pb-2 pt-[max(0.45rem,env(safe-area-inset-top))]"
       : "flex shrink-0 items-center justify-between gap-2 bg-cream px-4 pb-2 pt-[max(0.45rem,env(safe-area-inset-top))]"}>
-      <BrandLogo compact />
+      {welcome ? <span className="rounded-[18px] bg-cream/95 px-2 shadow-[0_6px_18px_rgba(0,0,0,0.18)]"><BrandLogo compact /></span> : <BrandLogo compact />}
     </div>
   );
 }

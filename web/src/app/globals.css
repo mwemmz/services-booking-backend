@@ -167,7 +167,7 @@ select {
 
 .page-enter,
 .rise {
-  animation: rise 0.38s ease both;
+  animation: rise 0.38s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 @keyframes pop {
@@ -349,20 +349,20 @@ a[href] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .rise, .page-enter { animation: none; }
   .dash-rise { animation: none; }
   .dash-card { transition: none; }
 }
 
 .link-blue {
-  color: #2563eb;
+  color: var(--color-forest);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   transition: color 0.15s ease, text-shadow 0.15s ease;
 }
 
 .link-blue:hover {
-  color: #1d4ed8;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-shadow: 0 0 12px rgba(37, 99, 235, 0.55);
+  color: var(--color-forest-deep);
 }
 
 @keyframes icon-float {

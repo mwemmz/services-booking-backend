@@ -89,13 +89,17 @@ export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }:
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-cream lg:flex-row lg:overflow-hidden">
-      <div className="relative min-h-[210px] flex-1 overflow-hidden bg-[#3a2418] lg:min-h-0">
+      <div className="relative min-h-[210px] flex-1 overflow-hidden bg-forest-deep lg:min-h-0">
+        {/* Phone: the photo fills the panel behind the headline. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[center_15%]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/55" />
-        <div className="relative flex h-full flex-col justify-end px-6 pb-9 pt-24 lg:px-14 lg:pb-16">
-          <h1 className="font-display text-[1.75rem] leading-[1.08] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] lg:max-w-xl lg:text-[3rem]">Skilled work when you need it</h1>
-          <p className="mt-1.5 text-sm text-white/90">Book beauty, handy work and cleaning from people near you.</p>
+        <img src="/images/welcome.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-[center_22%] lg:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/55 lg:hidden" />
+        {/* Laptop: the photo is a portrait, so it gets its own column at its natural proportions and fades into the green panel. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/welcome.jpg" alt="" className="absolute inset-y-0 right-0 hidden h-full w-[46%] max-w-[560px] object-cover object-[54%_top] lg:block [mask-image:linear-gradient(to_right,transparent,black_30%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_30%)]" />
+        <div className="relative flex h-full flex-col justify-end px-6 pb-9 pt-24 lg:w-[54%] lg:px-14 lg:pb-20">
+          <h1 className="rise text-balance font-display text-[1.75rem] leading-[1.08] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] lg:text-[3rem] lg:drop-shadow-none">Skilled work when you need it</h1>
+          <p className="rise mt-1.5 text-sm text-white/90 [animation-delay:60ms] lg:mt-4 lg:max-w-sm lg:text-base lg:text-white/80">Book beauty, handy work and cleaning from people near you.</p>
         </div>
       </div>
       <div className="relative -mt-6 shrink-0 rounded-t-[30px] bg-cream px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-12px_40px_rgba(0,0,0,0.2)] lg:mt-0 lg:flex lg:w-[520px] lg:flex-col lg:justify-center lg:overflow-y-auto lg:rounded-none lg:px-14 lg:shadow-none">
