@@ -57,7 +57,7 @@ export function AppShell({ role, children }: { role: "CUSTOMER" | "PROVIDER"; ch
     });
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") refresh().catch(() => undefined);
-    }, 12000);
+    }, 30000);
     return () => {
       stop = true;
       window.clearInterval(timer);
@@ -72,7 +72,6 @@ export function AppShell({ role, children }: { role: "CUSTOMER" | "PROVIDER"; ch
       const href = hrefs[index++];
       if (!href) return;
       router.prefetch(href);
-      fetch(href, { credentials: "same-origin" }).catch(() => undefined);
       timer = window.setTimeout(warm, 250);
     };
     timer = window.setTimeout(warm, 400);
@@ -110,7 +109,7 @@ export function AppShell({ role, children }: { role: "CUSTOMER" | "PROVIDER"; ch
       Notification.requestPermission().catch(() => undefined);
     }
     look();
-    const timer = window.setInterval(look, 5000);
+    const timer = window.setInterval(look, 10000);
     return () => {
       stop = true;
       window.clearInterval(timer);

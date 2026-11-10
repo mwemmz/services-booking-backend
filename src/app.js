@@ -86,17 +86,21 @@ function createApp({ nextDispatch, nextFallback, corsOptions } = {}) {
 
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Too many requests, please try again later.',
+    // The browser app polls through this same origin, so one logged-in tab
+    // already makes hundreds of requests per 15 minutes; a whole room can
+    // share one public IP. Keep the limit as an abuse guard only.
+    max: 3000,
+    message: { message: 'Too many requests, please try again later.' },
     skip: isLoopback,
   });
   app.use('/api', limiter);
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 20,
-    message: 'Too many auth attempts, please try again later.',
-    skip: isLoopback,
+    max: 60,
+    message: { message: 'Too many auth attempts, please try again later.' },
+    // /auth/me is a session check the app polls, not a login attempt.
+    skip: (req) => isLoopback(req) || req.method === 'GET',
   });
   app.use('/api/auth', authLimiter);
 

@@ -52,7 +52,17 @@ const startServer = async () => {
   const server = http.createServer(app);
   initSocket(server, { cors: { origin: clientUrl || true, methods: ['GET', 'POST'] } });
 
-  await sequelize.authenticate();
+  // A sleeping or restarting database should delay start-up, not crash-loop the service.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await sequelize.authenticate();
+      break;
+    } catch (error) {
+      if (attempt >= 8) throw error;
+      console.error(`[db] connection attempt ${attempt} failed: ${error.message}. Retrying in 4s.`);
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+    }
+  }
   console.log('Database connected successfully.');
 
   await applyEnumMigrations();
@@ -71,6 +81,10 @@ const startServer = async () => {
     console.log(`Combined Express + Next server running on port ${port} in ${config.nodeEnv} mode`);
   });
 };
+
+// One stray rejection (a failed email, push or tile request) must not take the whole site down.
+process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
+process.on('uncaughtException', (error) => console.error('[uncaughtException]', error));
 
 startServer().catch((error) => {
   console.error('Failed to start server:', error);
