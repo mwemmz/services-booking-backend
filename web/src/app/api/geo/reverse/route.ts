@@ -1,4 +1,4 @@
-import { route, ok, fail, HttpError } from "@/lib/http";
+import { route, ok, HttpError } from "@/lib/http";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,8 @@ export const GET = route(async (req) => {
     headers: { "User-Agent": "ZamServe/1.0 (local service marketplace)", Accept: "application/json" },
     cache: "no-store",
   }).catch(() => null);
-  if (!response?.ok) return fail("Unable to read that location. Enter it manually.", 502);
-  const data = (await response.json()) as { display_name?: string };
+  // The street name is a nicety. If the lookup service is slow or blocked, still return the coordinates.
+  if (!response?.ok) return ok({ label: "Selected location", latitude: lat, longitude: lng });
+  const data = (await response.json().catch(() => ({}))) as { display_name?: string };
   return ok({ label: data.display_name || "Selected location", latitude: lat, longitude: lng });
 });
