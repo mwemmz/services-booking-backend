@@ -38,6 +38,11 @@ exports.createBooking = async (req, res) => {
   try {
     const { provider_id, service_id, booking_time, location_lat, location_lng, address, notes, crew_id } = req.body;
 
+    const when = new Date(booking_time);
+    if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() - 60 * 1000) {
+      return res.status(400).json({ message: 'That date and time has already passed. Choose a future time.' });
+    }
+
     const service = await Service.findByPk(service_id);
     if (!service || !service.is_active) {
       return res.status(404).json({ message: 'Service not found or inactive.' });
@@ -619,6 +624,9 @@ exports.rebookBooking = async (req, res) => {
     }
 
     const booking_time = req.body.booking_time || new Date(Date.now() + 15 * 60 * 1000);
+    if (new Date(booking_time).getTime() < Date.now() - 60 * 1000) {
+      return res.status(400).json({ message: 'That date and time has already passed. Choose a future time.' });
+    }
     if (req.body.crew_id) {
       const crew = await Crew.findByPk(req.body.crew_id);
       if (!crew) return res.status(404).json({ message: 'Crew not found.' });

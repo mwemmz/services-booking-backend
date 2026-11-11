@@ -135,7 +135,7 @@ exports.generateSlots = async ({ providerId, date, slotMinutes = 30, durationMin
         return isOverlapping(slotTime, durationMin || slotMinutes, b.booking_time, bDur);
       });
 
-      if (!clash) {
+      if (!clash && slotTime.getTime() > Date.now()) {
         slots.push({
           time: slotTime.toISOString(),
           label: toHHMM(t),
