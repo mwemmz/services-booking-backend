@@ -164,6 +164,39 @@ export function AdminUsers() {
   const [meta, setMeta] = useState<Pagination | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [adm, setAdm] = useState({ name: "", email: "", password: "" });
+
+  async function resetPassword(user: RawUser) {
+    if (!window.confirm(`Reset the password for ${user.name}? A temporary password will be shown once.`)) return;
+    setBusy(user.id);
+    setError("");
+    setNotice("");
+    try {
+      const res = await api<{ temporaryPassword?: string }>(`/api/admin/users/${user.id}/reset-password`, { method: "PUT", body: "{}" });
+      setNotice(`Temporary password for ${user.name}: ${res.temporaryPassword ?? ""}  Share it privately. They should change it after signing in.`);
+    } catch (err) {
+      setError(errorMessage(err, "Unable to reset this password."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createAdmin() {
+    setError("");
+    setNotice("");
+    try {
+      await api("/api/admin/admins", { method: "POST", body: JSON.stringify(adm) });
+      setNotice(`Admin account created for ${adm.email}.`);
+      setAdm({ name: "", email: "", password: "" });
+      setShowAdmin(false);
+      setPage(1);
+      setRole("admin");
+    } catch (err) {
+      setError(errorMessage(err, "Unable to create the admin."));
+    }
+  }
 
   async function setActive(user: RawUser, active: boolean) {
     if (!active && !window.confirm(`Suspend ${user.name}? They will be signed out and cannot log in until reactivated.`)) return;
@@ -220,6 +253,18 @@ export function AdminUsers() {
         className="h-11 w-full rounded-full border border-line bg-card px-4 text-sm outline-none focus:border-forest"
       />
       <FilterChips options={userFilters} value={role} onChange={(id) => { setRole(id); setPage(1); }} />
+      <div className="mt-3">
+        <Button variant="ghost" onClick={() => setShowAdmin((v) => !v)}>{showAdmin ? "Cancel" : "Add an admin"}</Button>
+      </div>
+      {showAdmin && (
+        <div className="mt-3 space-y-3 rounded-[22px] border border-line bg-card p-4">
+          <Field label="Name"><TextInput value={adm.name} onChange={(e) => setAdm({ ...adm, name: e.target.value })} /></Field>
+          <Field label="Email"><TextInput type="email" value={adm.email} onChange={(e) => setAdm({ ...adm, email: e.target.value })} /></Field>
+          <Field label="Password (8 or more characters)"><TextInput type="password" value={adm.password} onChange={(e) => setAdm({ ...adm, password: e.target.value })} /></Field>
+          <Button onClick={createAdmin} disabled={!adm.name || !adm.email || adm.password.length < 8}>Create admin</Button>
+        </div>
+      )}
+      {notice && <div className="mt-4 rounded-2xl border border-forest/30 bg-card p-3 text-sm font-semibold select-all">{notice}</div>}
       {error && <div className="mt-4"><Banner>{error}</Banner></div>}
       {!rows && !error && <div className="mt-4"><LoadingBlock label="Loading users..." /></div>}
       {rows && rows.length === 0 && (
@@ -231,7 +276,8 @@ export function AdminUsers() {
             <Avatar src={user.profile_image} name={user.name} size={40} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{user.name}</p>
-              <p className="truncate text-xs text-muted">{user.email}</p>
+              <p className="truncate text-xs text-muted">{user.email}{user.phone ? ` · ${user.phone}` : ""}</p>
+              <p className="truncate text-[11px] text-muted">Joined {formatStamp(user.createdAt)}</p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1.5">
               <StatusPill
@@ -246,6 +292,16 @@ export function AdminUsers() {
                   className="text-[11px] font-semibold text-forest underline underline-offset-2 disabled:opacity-60"
                 >
                   {user.is_active === false ? "Reactivate" : "Suspend"}
+                </button>
+              )}
+              {user.role !== "admin" && (
+                <button
+                  type="button"
+                  onClick={() => resetPassword(user)}
+                  disabled={busy === user.id}
+                  className="text-[11px] font-semibold text-forest underline underline-offset-2 disabled:opacity-60"
+                >
+                  Reset password
                 </button>
               )}
             </div>

@@ -3,6 +3,7 @@ const sequelize = require('../config/database');
 const { User, Provider, Booking, Service, Payment, AuditLog } = require('../models');
 const { audit } = require('../services/auditService');
 const { createNotification } = require('../services/notificationService');
+const crypto = require('crypto');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 
 const publicUserAttributes = { exclude: ['password_hash', 'reset_token', 'reset_token_expires', 'email_verify_token'] };
@@ -147,6 +148,59 @@ exports.unlockUser = async (req, res) => {
     return res.json({ message: 'Account unlocked.' });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to unlock user.', error: error.message });
+  }
+};
+
+
+const tempPassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from(crypto.randomBytes(10), (b) => chars[b % chars.length]).join('');
+};
+
+/** Sets a new password for a customer or provider. Generates a one-time temporary one when none is given. */
+exports.resetUserPassword = async (req, res) => {
+  try {
+    const user = await findManagedUser(req, res);
+    if (!user) return undefined;
+    const supplied = req.body && req.body.newPassword;
+    if (supplied !== undefined && (typeof supplied !== 'string' || supplied.length < 8)) {
+      return res.status(400).json({ message: 'A password must be at least 8 characters.' });
+    }
+    const password = supplied || tempPassword();
+    user.password_hash = password;
+    user.failed_login_attempts = 0;
+    user.locked_until = null;
+    user.reset_token = null;
+    user.reset_token_expires = null;
+    await user.save();
+    await audit(req, 'USER_PASSWORD_RESET', { targetType: 'user', targetId: user.id, detail: user.name });
+    return res.json({ message: 'Password reset.', ...(supplied ? {} : { temporaryPassword: password }) });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to reset password.', error: error.message });
+  }
+};
+
+/** Creates another admin account. */
+exports.createAdmin = async (req, res) => {
+  try {
+    const name = String((req.body && req.body.name) || '').trim();
+    const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+    const password = req.body && req.body.password;
+    if (!name || !/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({ message: 'Enter a name and a valid email.' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ message: 'A password must be at least 8 characters.' });
+    }
+    const existing = await User.findOne({ where: sequelize.where(sequelize.fn('lower', sequelize.col('email')), email) });
+    if (existing) return res.status(409).json({ code: 'ACCOUNT_EXISTS', message: 'An account with this email already exists.' });
+    const user = await User.create({
+      name, email, password_hash: password, phone: (req.body.phone || '').trim(), role: 'admin', is_active: true, email_verified: true,
+    });
+    await audit(req, 'ADMIN_CREATED', { targetType: 'user', targetId: user.id, detail: email });
+    return res.status(201).json({ message: 'Admin created.', user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to create admin.', error: error.message });
   }
 };
 

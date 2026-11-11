@@ -8,6 +8,8 @@ const {
   suspendUser,
   reactivateUser,
   unlockUser,
+  resetUserPassword,
+  createAdmin,
   getSecurityOverview,
   getAllBookings,
   getAnalytics,
@@ -25,6 +27,8 @@ router.put('/providers/:id/reject', authenticate, authorize('admin'), rejectProv
 router.put('/users/:id/suspend', authenticate, authorize('admin'), suspendUser);
 router.put('/users/:id/reactivate', authenticate, authorize('admin'), reactivateUser);
 router.put('/users/:id/unlock', authenticate, authorize('admin'), unlockUser);
+router.put('/users/:id/reset-password', authenticate, authorize('admin'), resetUserPassword);
+router.post('/admins', authenticate, authorize('admin'), createAdmin);
 router.get('/security', authenticate, authorize('admin'), getSecurityOverview);
 router.get('/bookings', authenticate, authorize('admin'), getAllBookings);
 router.get('/analytics', authenticate, authorize('admin'), getAnalytics);
