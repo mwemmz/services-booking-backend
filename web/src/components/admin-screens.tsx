@@ -71,6 +71,7 @@ type BookingDetail = {
 type Analytics = {
   totalBookings: number;
   totalRevenue: number;
+  jobValue?: number;
   totalUsers: number;
   totalProviders: number;
   recentBookings: RawBooking[];
@@ -142,7 +143,8 @@ export function AdminOverview() {
         <StatCard label="Users" value={String(data.totalUsers)} />
         <StatCard label="Providers" value={String(data.totalProviders)} />
         <StatCard label="Bookings" value={String(data.totalBookings)} />
-        <StatCard label="Revenue" value={kwacha(data.totalRevenue)} />
+        <StatCard label="Platform revenue" value={kwacha(data.totalRevenue)} />
+        <StatCard label="Job value processed" value={kwacha(data.jobValue ?? 0)} />
       </div>
 
       <div className="mt-6">
@@ -353,7 +355,123 @@ const providerFilters = [
   { id: "rejected", label: "Rejected" },
 ];
 
+
+type RevenueData = {
+  fee: number;
+  total: number;
+  this_month: number;
+  payments_count: number;
+  paid_up: number;
+  job_value: number;
+  unpaid: { id: string; name: string; phone?: string | null; verified: boolean }[];
+  recent: { id: string; provider: string; amount: number; method?: string | null; reference?: string | null; at: string; period_end: string }[];
+};
+
+export function AdminRevenue() {
+  const [data, setData] = useState<RevenueData | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api<RevenueData>("/api/admin/revenue").then(setData).catch((err) => setError(errorMessage(err, "Unable to load revenue.")));
+  }, []);
+  if (error) return <Screen><Banner>{error}</Banner></Screen>;
+  if (!data) return <Screen><LoadingBlock label="Loading revenue..." /></Screen>;
+  return (
+    <Screen>
+      <SectionTitle title="Revenue" />
+      <p className="mb-3 text-xs text-muted">ZamServe earns {kwacha(data.fee)} from each provider every 30 days. Money customers pay for jobs goes to the provider, so it is shown separately.</p>
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Total revenue" value={kwacha(data.total)} />
+        <StatCard label="This month" value={kwacha(data.this_month)} />
+        <StatCard label="Providers paid up" value={String(data.paid_up)} />
+        <StatCard label="Job value processed" value={kwacha(data.job_value)} />
+      </div>
+      <div className="mt-6">
+        <SectionTitle title="Recent payments" />
+        {data.recent.length === 0 ? (
+          <EmptyState title="No payments yet" body="When a provider pays the platform fee it shows here." />
+        ) : (
+          <div className="space-y-2">
+            {data.recent.map((p) => (
+              <div key={p.id} className="rounded-[22px] border border-line bg-card p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-semibold">{p.provider}</p>
+                  <p className="font-semibold text-forest">{kwacha(p.amount)}</p>
+                </div>
+                <p className="mt-1 text-xs text-muted">{formatStamp(p.at)} · {p.method ?? "Mobile money"} · Ref {p.reference ?? "-"}</p>
+                <p className="text-xs text-muted">Listed until {formatStamp(p.period_end)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="mt-6">
+        <SectionTitle title={`Not paid up (${data.unpaid.length})`} />
+        {data.unpaid.length === 0 ? (
+          <p className="text-sm text-muted">Every provider is paid up.</p>
+        ) : (
+          <div className="space-y-2">
+            {data.unpaid.slice(0, 30).map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-2 rounded-[22px] border border-line bg-card px-3 py-2.5">
+                <p className="truncate text-sm font-semibold">{p.name}</p>
+                <p className="shrink-0 text-xs text-muted">{p.phone ?? ""}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Screen>
+  );
+}
+
+type ProviderProfile = {
+  provider: RawProvider & { description?: string | null; services?: { id: string; name: string; price: string | number; is_active?: boolean }[]; user?: { name?: string; email?: string; phone?: string | null; national_id_number?: string | null } };
+  reviews: { id: string; rating: number; comment?: string | null; createdAt: string; customer?: { name: string } | null }[];
+  booking_counts: Record<string, number>;
+  earned: number;
+  subscription: { fee: number; active: boolean; paid_until: string | null; payments: { id: string; amount: string | number; method?: string | null; reference?: string | null; createdAt: string }[] };
+};
+
+function ProviderReviewPanel({ id }: { id: string }) {
+  const [data, setData] = useState<ProviderProfile | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    api<ProviderProfile>(`/api/admin/providers/${id}/profile`).then(setData).catch((e) => setErr(errorMessage(e, "Unable to load the profile.")));
+  }, [id]);
+  if (err) return <p className="mt-2 text-xs text-red-600">{err}</p>;
+  if (!data) return <p className="mt-2 text-xs text-muted">Loading profile...</p>;
+  const p = data.provider;
+  const jobs = Object.entries(data.booking_counts);
+  const total = jobs.reduce((t, [, n]) => t + n, 0);
+  return (
+    <div className="mt-3 rounded-2xl border border-line bg-bg p-3 text-xs">
+      <p className="font-semibold">Profile review</p>
+      <div className="mt-1 space-y-1 text-muted">
+        <p>Owner: {p.user?.name ?? "-"} · {p.user?.phone ?? "no phone"} · {p.user?.email ?? ""}</p>
+        <p>NRC: {p.user?.national_id_number ?? "not provided"}</p>
+        <p>Category: {p.category ?? "-"} · {p.verification_status ?? "unverified"}</p>
+        {p.description && <p>About: {p.description}</p>}
+        <p>Rating {Number(p.rating ?? 0).toFixed(1)} ★ from {p.total_reviews ?? 0} reviews</p>
+      </div>
+      <p className="mt-3 font-semibold">Services ({p.services?.length ?? 0})</p>
+      {(p.services ?? []).length === 0 && <p className="text-muted">No services listed.</p>}
+      {(p.services ?? []).map((sv) => <p key={sv.id} className="text-muted">{sv.name} · {kwacha(Number(sv.price))}{sv.is_active === false ? " (hidden)" : ""}</p>)}
+      <p className="mt-3 font-semibold">Jobs ({total})</p>
+      <p className="text-muted">{jobs.length ? jobs.map(([k, n]) => `${pillLabel(k)} ${n}`).join(" · ") : "No jobs yet."} · Earned {kwacha(data.earned)}</p>
+      <p className="mt-3 font-semibold">Platform fee</p>
+      <p className="text-muted">
+        {data.subscription.active ? `Paid until ${formatStamp(data.subscription.paid_until ?? "")}` : "Not paid up"} · {data.subscription.payments.length} payment(s)
+      </p>
+      <p className="mt-3 font-semibold">Customer reviews</p>
+      {data.reviews.length === 0 && <p className="text-muted">No reviews yet.</p>}
+      {data.reviews.map((r) => (
+        <p key={r.id} className="mt-1 text-muted">{r.rating} ★ · {r.customer?.name ?? "Customer"} · {formatStamp(r.createdAt)}{r.comment ? ` · "${r.comment}"` : ""}</p>
+      ))}
+    </div>
+  );
+}
+
 export function AdminProviders() {
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const [verified, setVerified] = useState("");
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<RawProvider[] | null>(null);
@@ -477,6 +595,10 @@ export function AdminProviders() {
                 {Number(provider.rating ?? 0).toFixed(1)} ★ ({provider.total_reviews ?? 0} reviews)
               </p>
             </div>
+            <button type="button" onClick={() => setReviewing(reviewing === provider.id ? null : provider.id)} className="btn-3d btn-3d-light mt-3 rounded-full px-3 py-1.5 text-[11px] font-semibold">
+              {reviewing === provider.id ? "Close review" : "Review profile"}
+            </button>
+            {reviewing === provider.id && <ProviderReviewPanel id={provider.id} />}
             {provider.user?.national_id_number && !provider.is_verified && (
               <p className="mt-2 text-xs"><span className="text-muted">NRC submitted:</span> <span className="font-semibold">{provider.user.national_id_number}</span></p>
             )}

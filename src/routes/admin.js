@@ -13,6 +13,8 @@ const {
   getSecurityOverview,
   getAllBookings,
   getBookingDetail,
+  getRevenue,
+  getProviderProfile,
   getAnalytics,
   getReports,
 } = require('../controllers/adminController');
@@ -32,6 +34,8 @@ router.put('/users/:id/reset-password', authenticate, authorize('admin'), resetU
 router.post('/admins', authenticate, authorize('admin'), createAdmin);
 router.get('/security', authenticate, authorize('admin'), getSecurityOverview);
 router.get('/bookings', authenticate, authorize('admin'), getAllBookings);
+router.get('/revenue', authenticate, authorize('admin'), getRevenue);
+router.get('/providers/:id/profile', authenticate, authorize('admin'), getProviderProfile);
 router.get('/bookings/:id', authenticate, authorize('admin'), getBookingDetail);
 router.get('/analytics', authenticate, authorize('admin'), getAnalytics);
 router.get('/reports', authenticate, authorize('admin'), getReports);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, LayoutDashboard, Lock, LogOut, ShieldCheck, Users } from "lucide-react";
+import { CalendarDays, LayoutDashboard, Lock, LogOut, ShieldCheck, Users, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiError, api, cn } from "@/lib/client";
 import { Banner, LoadingBlock } from "@/components/ui";
@@ -12,6 +12,7 @@ const nav = [
   { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/providers", label: "Providers", icon: ShieldCheck },
+  { href: "/admin/revenue", label: "Revenue", icon: Wallet },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarDays },
   { href: "/admin/security", label: "Security", icon: Lock },
 ];

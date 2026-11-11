@@ -1,5 +1,6 @@
 const User = require('./User');
 const Provider = require('./Provider');
+const SubscriptionPayment = require('./SubscriptionPayment');
 const Service = require('./Service');
 const Booking = require('./Booking');
 const Payment = require('./Payment');
@@ -74,6 +75,8 @@ Review.belongsTo(User, { foreignKey: 'customer_id', as: 'customer' });
 Review.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 // Reviews shown on a provider's storefront page.
 Provider.hasMany(Review, { foreignKey: 'provider_id', as: 'reviews' });
+Provider.hasMany(SubscriptionPayment, { foreignKey: 'provider_id', as: 'subscriptions' });
+SubscriptionPayment.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 
 User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -127,6 +130,7 @@ Provider.hasMany(ProviderAvailability, { foreignKey: 'provider_id', as: 'availab
 ProviderAvailability.belongsTo(Provider, { foreignKey: 'provider_id', as: 'provider' });
 
 module.exports = {
+  SubscriptionPayment,
   User,
   Provider,
   Service,

@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
-const { User, Provider, Booking, Service, Payment, AuditLog, Certification, BookingStatusHistory } = require('../models');
+const { User, Provider, Booking, Service, Payment, AuditLog, Certification, BookingStatusHistory, SubscriptionPayment, Review, Transaction } = require('../models');
 const { audit } = require('../services/auditService');
 const { createNotification } = require('../services/notificationService');
 const crypto = require('crypto');
@@ -237,6 +237,89 @@ exports.getBookingDetail = async (req, res) => {
   }
 };
 
+/** Platform revenue: provider fees, who is paid up, who is not, and the money moving through jobs. */
+exports.getRevenue = async (req, res) => {
+  try {
+    const { FEE, statusOf } = require('./subscriptionController');
+    const payments = await SubscriptionPayment.findAll({
+      include: [{ model: Provider, as: 'provider', attributes: ['id', 'business_name'] }],
+      order: [['createdAt', 'DESC']],
+    });
+    const sum = (list) => list.reduce((t, p) => t + Number(p.amount), 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const byProvider = {};
+    payments.forEach((p) => { (byProvider[p.provider_id] = byProvider[p.provider_id] || []).push(p); });
+    const providers = await Provider.findAll({
+      include: [{ model: User, as: 'user', attributes: ['name', 'phone'] }],
+      attributes: ['id', 'business_name', 'is_verified'],
+    });
+    const rows = providers.map((p) => ({
+      id: p.id,
+      name: p.business_name || (p.user && p.user.name) || 'Provider',
+      phone: p.user ? p.user.phone : null,
+      verified: p.is_verified,
+      ...statusOf(byProvider[p.id] || []),
+    }));
+    const jobRow = await Transaction.findOne({ attributes: [[sequelize.fn('SUM', sequelize.col('amount')), 'total']], where: { status: 'EARNED' }, raw: true });
+    return res.json({
+      fee: FEE,
+      total: sum(payments),
+      this_month: sum(payments.filter((p) => new Date(p.createdAt) >= monthStart)),
+      payments_count: payments.length,
+      paid_up: rows.filter((r) => r.active).length,
+      unpaid: rows.filter((r) => !r.active),
+      job_value: parseFloat(jobRow && jobRow.total) || 0,
+      recent: payments.slice(0, 20).map((p) => ({
+        id: p.id,
+        provider: (p.provider && p.provider.business_name) || 'Provider',
+        amount: Number(p.amount),
+        method: p.method,
+        reference: p.reference,
+        at: p.createdAt,
+        period_end: p.period_end,
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to load revenue.', error: error.message });
+  }
+};
+
+/** One screen to review a provider: identity, certificates, services, ratings, jobs, and fee status. */
+exports.getProviderProfile = async (req, res) => {
+  try {
+    const { statusOf, FEE } = require('./subscriptionController');
+    const provider = await Provider.findByPk(req.params.id, {
+      include: [
+        { model: User, as: 'user', attributes: publicUserAttributes },
+        { model: Certification, as: 'certifications' },
+        { model: Service, as: 'services' },
+      ],
+    });
+    if (!provider) return res.status(404).json({ message: 'Provider not found.' });
+    const reviews = await Review.findAll({
+      where: { provider_id: provider.id },
+      include: [{ model: User, as: 'customer', attributes: ['name'] }],
+      order: [['createdAt', 'DESC']],
+      limit: 10,
+    });
+    const counts = {};
+    (await Booking.findAll({ where: { provider_id: provider.id }, attributes: ['status'], raw: true })).forEach((b) => { counts[b.status] = (counts[b.status] || 0) + 1; });
+    const payments = await SubscriptionPayment.findAll({ where: { provider_id: provider.id }, order: [['createdAt', 'DESC']] });
+    const earned = await Transaction.findOne({ attributes: [[sequelize.fn('SUM', sequelize.col('amount')), 'total']], where: { provider_id: provider.id, status: 'EARNED' }, raw: true });
+    return res.json({
+      provider,
+      reviews,
+      booking_counts: counts,
+      earned: parseFloat(earned && earned.total) || 0,
+      subscription: { fee: FEE, ...statusOf(payments), payments },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to load provider.', error: error.message });
+  }
+};
+
 /** One screen of security facts: who is locked out, what is waiting, what just happened. */
 exports.getSecurityOverview = async (req, res) => {
   try {
@@ -311,11 +394,16 @@ exports.getAnalytics = async (req, res) => {
     const totalUsers = await User.count();
     const totalProviders = await Provider.count();
 
-    const revenueResult = await Payment.findOne({
-      attributes: [
-        [sequelize.fn('SUM', sequelize.col('amount')), 'totalRevenue'],
-      ],
-      where: { status: 'completed' },
+    // Platform revenue is what providers pay to be listed. Job money belongs to
+    // the provider, so it is reported separately as value processed.
+    const revenueRow = await SubscriptionPayment.findOne({
+      attributes: [[sequelize.fn('SUM', sequelize.col('amount')), 'total']],
+      where: { status: 'paid' },
+      raw: true,
+    });
+    const jobRow = await Transaction.findOne({
+      attributes: [[sequelize.fn('SUM', sequelize.col('amount')), 'total']],
+      where: { status: 'EARNED' },
       raw: true,
     });
 
@@ -330,7 +418,8 @@ exports.getAnalytics = async (req, res) => {
 
     return res.json({
       totalBookings,
-      totalRevenue: parseFloat(revenueResult.totalRevenue) || 0,
+      totalRevenue: parseFloat(revenueRow && revenueRow.total) || 0,
+      jobValue: parseFloat(jobRow && jobRow.total) || 0,
       totalUsers,
       totalProviders,
       recentBookings,

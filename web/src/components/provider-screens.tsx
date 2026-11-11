@@ -16,6 +16,7 @@ import { useSocket } from "@/contexts/socket-context";
 import { useLiveRefresh } from "@/lib/use-live-refresh";
 import { metresOffRoute } from "@/lib/use-live-tracking";
 import { ServiceChoices } from "./service-choices";
+import { ProviderSubscription } from "./provider-subscription";
 import { Gate, useFormGate } from "./form-gate";
 import { Avatar, BackLink, Banner, Button, EmptyState, Field, LoadingBlock, Modal, Screen, Stars, StatusPill, TextInput, Verified } from "./ui";
 
@@ -203,6 +204,7 @@ export function ProviderHome() {
           </div>
         </div>
       </header>
+      <ProviderSubscription />
 
       <section className="hero-3d dash-rise relative -mx-4 mt-5 h-[214px] overflow-hidden rounded-[28px] bg-[#f7f1e8] lg:mx-0 lg:h-[250px]">
         <img src="/images/provider-welcome.jpg?v=1" alt="" className="absolute inset-y-0 right-0 h-full w-[58%] object-cover object-[58%_center] lg:w-[56%] lg:object-contain lg:object-right [mask-image:linear-gradient(to_right,transparent,black_46%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_46%)]" />

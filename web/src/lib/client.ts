@@ -65,6 +65,7 @@ function announce(path: string, init?: RequestInit) {
   else if (/\/reactivate$/.test(path)) text = "Account reactivated.";
   else if (/\/unlock$/.test(path)) text = "Account unlocked.";
   else if (/\/reset-password$/.test(path)) text = "Password reset.";
+  else if (path === "/api/provider/subscription/pay") text = "Payment received. Your listing is active.";
   else if (path === "/api/provider/certificates") text = "Certificate submitted for review.";
   if (text) window.dispatchEvent(new CustomEvent("zam-toast", { detail: text }));
 }
