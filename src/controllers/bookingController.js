@@ -450,8 +450,10 @@ exports.cancelBooking = async (req, res) => {
 
     await booking.update({ status: 'cancelled' });
 
+    const cancelReason = String((req.body && req.body.reason) || '').trim().slice(0, 150);
+    const byWho = isProvider ? 'provider' : 'customer';
     await syncTransaction(booking, { status: 'VOID' });
-    await recordStatus(booking.id, 'cancelled', 'Booking cancelled', req.user.id);
+    await recordStatus(booking.id, 'cancelled', `Cancelled by the ${byWho}${cancelReason ? `: ${cancelReason}` : ''}`, req.user.id);
 
     await broadcastBookingStatus(booking.id, 'cancelled', booking.customer_id, booking.provider_id);
     // Let both sides know the job is off.

@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
-const { User, Provider, Booking, Service, Payment, AuditLog, Certification } = require('../models');
+const { User, Provider, Booking, Service, Payment, AuditLog, Certification, BookingStatusHistory } = require('../models');
 const { audit } = require('../services/auditService');
 const { createNotification } = require('../services/notificationService');
 const crypto = require('crypto');
@@ -210,6 +210,33 @@ exports.createAdmin = async (req, res) => {
   }
 };
 
+
+/** Everything about one booking: who, when, money, and the full timeline with who made each change. */
+exports.getBookingDetail = async (req, res) => {
+  try {
+    const booking = await Booking.findByPk(req.params.id, {
+      include: [
+        { model: User, as: 'customer', attributes: publicUserAttributes },
+        { model: Provider, as: 'provider', include: [{ model: User, as: 'user', attributes: publicUserAttributes }] },
+        { model: Service, as: 'service' },
+        { model: Payment, as: 'payment' },
+      ],
+    });
+    if (!booking) return res.status(404).json({ message: 'Booking not found.' });
+    const history = await BookingStatusHistory.findAll({ where: { booking_id: booking.id }, order: [['createdAt', 'ASC']] });
+    const actorIds = [...new Set(history.map((h) => h.actor_user_id).filter(Boolean))];
+    const actors = actorIds.length ? await User.findAll({ where: { id: { [Op.in]: actorIds } }, attributes: ['id', 'name', 'role'] }) : [];
+    const byId = Object.fromEntries(actors.map((a) => [a.id, a]));
+    const timeline = history.map((h) => {
+      const a = h.actor_user_id ? byId[h.actor_user_id] : null;
+      return { status: h.status, note: h.note, at: h.createdAt, actor: a ? { name: a.name, role: a.role } : null };
+    });
+    return res.json({ booking, timeline });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch booking.', error: error.message });
+  }
+};
+
 /** One screen of security facts: who is locked out, what is waiting, what just happened. */
 exports.getSecurityOverview = async (req, res) => {
   try {
@@ -252,8 +279,25 @@ exports.getAllBookings = async (req, res) => {
 
     const { count, rows: bookings } = await Booking.findAndCountAll(query);
 
+    // Who ended a cancelled, rejected or expired booking, and when.
+    const ended = bookings.filter((b) => ['cancelled', 'rejected', 'expired'].includes(b.status)).map((b) => b.id);
+    const endedBy = {};
+    if (ended.length) {
+      const rows = await BookingStatusHistory.findAll({
+        where: { booking_id: { [Op.in]: ended }, status: { [Op.in]: ['cancelled', 'rejected', 'expired'] } },
+        order: [['createdAt', 'ASC']],
+      });
+      const actorIds = [...new Set(rows.map((r) => r.actor_user_id).filter(Boolean))];
+      const actors = actorIds.length ? await User.findAll({ where: { id: { [Op.in]: actorIds } }, attributes: ['id', 'name', 'role'] }) : [];
+      const byId = Object.fromEntries(actors.map((a) => [a.id, a]));
+      rows.forEach((r) => {
+        const a = r.actor_user_id ? byId[r.actor_user_id] : null;
+        endedBy[r.booking_id] = { by: a ? `${a.name} (${a.role})` : 'Automatic expiry', at: r.createdAt, note: r.note };
+      });
+    }
+
     return res.json({
-      bookings,
+      bookings: bookings.map((b) => ({ ...b.toJSON(), ended_by: endedBy[b.id] || null })),
       pagination: buildPaginationResponse(count, page, limit),
     });
   } catch (error) {

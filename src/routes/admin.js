@@ -12,6 +12,7 @@ const {
   createAdmin,
   getSecurityOverview,
   getAllBookings,
+  getBookingDetail,
   getAnalytics,
   getReports,
 } = require('../controllers/adminController');
@@ -31,6 +32,7 @@ router.put('/users/:id/reset-password', authenticate, authorize('admin'), resetU
 router.post('/admins', authenticate, authorize('admin'), createAdmin);
 router.get('/security', authenticate, authorize('admin'), getSecurityOverview);
 router.get('/bookings', authenticate, authorize('admin'), getAllBookings);
+router.get('/bookings/:id', authenticate, authorize('admin'), getBookingDetail);
 router.get('/analytics', authenticate, authorize('admin'), getAnalytics);
 router.get('/reports', authenticate, authorize('admin'), getReports);
 router.get('/demand-map', authenticate, authorize('admin'), getDemandMap);

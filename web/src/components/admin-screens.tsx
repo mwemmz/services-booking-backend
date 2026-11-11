@@ -53,6 +53,19 @@ type RawBooking = {
   customer?: { name: string } | null;
   provider?: { business_name?: string | null } | null;
   service?: { name: string } | null;
+  ended_by?: { by: string; at: string; note?: string | null } | null;
+};
+
+type BookingDetail = {
+  booking: RawBooking & {
+    address?: string | null;
+    notes?: string | null;
+    customer?: { name: string; email?: string | null; phone?: string | null } | null;
+    provider?: { business_name?: string | null; user?: { name?: string; phone?: string | null } | null } | null;
+    payment?: { status?: string; method?: string | null; amount?: string | number } | null;
+    updatedAt?: string;
+  };
+  timeline: { status: string; note?: string | null; at: string; actor: { name: string; role: string } | null }[];
 };
 
 type Analytics = {
@@ -572,7 +585,43 @@ const bookingFilters = [
   { id: "cancelled", label: "Cancelled" },
 ];
 
+function BookingDetailPanel({ id }: { id: string }) {
+  const [data, setData] = useState<BookingDetail | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    api<BookingDetail>(`/api/admin/bookings/${id}`).then(setData).catch((e) => setErr(errorMessage(e, "Unable to load details.")));
+  }, [id]);
+  if (err) return <p className="mt-2 text-xs text-red-600">{err}</p>;
+  if (!data) return <p className="mt-2 text-xs text-muted">Loading details...</p>;
+  const b = data.booking;
+  return (
+    <div className="mt-3 border-t border-line pt-3 text-xs">
+      <div className="space-y-1 text-muted">
+        <p>Customer: {b.customer?.name ?? "-"} {b.customer?.phone ? `· ${b.customer.phone}` : ""}</p>
+        <p>Provider: {b.provider?.business_name ?? "-"} {b.provider?.user?.phone ? `· ${b.provider.user.phone}` : ""}</p>
+        <p>Appointment: {formatStamp(b.booking_time)} · Amount {kwacha(Number(b.total_amount))}</p>
+        {b.address && <p>Address: {b.address}</p>}
+        {b.notes && <p>Notes: {b.notes}</p>}
+        <p>Payment: {b.payment?.status ?? "none"}{b.payment?.method ? ` (${b.payment.method})` : ""}</p>
+        <p>Booked on: {formatStamp(b.createdAt)}</p>
+      </div>
+      <p className="mt-3 font-semibold">Timeline</p>
+      <ol className="mt-1 space-y-1.5">
+        {data.timeline.length === 0 && <li className="text-muted">No history recorded.</li>}
+        {data.timeline.map((t, i) => (
+          <li key={i} className="rounded-xl bg-bg px-2 py-1.5">
+            <span className="font-semibold">{pillLabel(t.status)}</span>
+            <span className="text-muted"> · {formatStamp(t.at)} · {t.actor ? `${t.actor.name} (${t.actor.role})` : "System"}</span>
+            {t.note && <span className="block text-muted">{t.note}</span>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export function AdminBookings() {
+  const [open, setOpen] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<RawBooking[] | null>(null);
@@ -623,6 +672,15 @@ export function AdminBookings() {
             <p className="mt-1 text-xs text-muted">
               {formatStamp(booking.booking_time || booking.createdAt)} · {kwacha(Number(booking.total_amount))}
             </p>
+            {booking.ended_by && (
+              <p className="mt-1 text-xs font-semibold text-red-700">
+                {pillLabel(booking.status)} by {booking.ended_by.by} · {formatStamp(booking.ended_by.at)}
+              </p>
+            )}
+            <button className="mt-2 text-xs font-semibold text-primary underline" onClick={() => setOpen(open === booking.id ? null : booking.id)}>
+              {open === booking.id ? "Hide details" : "View details"}
+            </button>
+            {open === booking.id && <BookingDetailPanel id={booking.id} />}
           </div>
         ))}
       </div>
