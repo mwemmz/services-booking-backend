@@ -3,6 +3,7 @@ const { Provider, User, Service, ProviderAvailability } = require('../models');
 const db = require('../config/database');
 const { paginate, buildPaginationResponse } = require('../utils/pagination');
 const { haversineDistance } = require('../utils/distance');
+const { audit } = require('../services/auditService');
 
 /** Never expose auth secrets on public provider/user responses. */
 const publicUserAttributes = {
@@ -288,5 +289,36 @@ await db.transaction(async (transaction) => {
     return res.json({ message: 'Availability saved.', availability: normalised });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to save availability.', error: error.message });
+  }
+};
+
+/** Zambian NRC: 123456/78/9, typed with or without the slashes. */
+const normalizeNrc = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length === 9 ? `${digits.slice(0, 6)}/${digits.slice(6, 8)}/${digits.slice(8)}` : null;
+};
+
+/** The provider sends their NRC number for the admin to review. */
+exports.submitVerification = async (req, res) => {
+  try {
+    const nrc = normalizeNrc(req.body.national_id_number);
+    if (!nrc) {
+      return res.status(400).json({ message: 'Enter your NRC number like 123456/78/9.' });
+    }
+    const provider = await Provider.findOne({ where: { user_id: req.user.id } });
+    if (!provider) return res.status(404).json({ message: 'No provider profile for this account.' });
+    if (provider.is_verified) return res.status(409).json({ message: 'You are already verified.' });
+
+    const duplicate = await User.findOne({ where: { national_id_number: nrc, id: { [Op.ne]: req.user.id } } });
+    if (duplicate) {
+      return res.status(409).json({ message: 'That NRC number is already linked to another account.' });
+    }
+
+    await req.user.update({ national_id_number: nrc, national_id_verified: false });
+    await provider.update({ verification_status: 'pending', verification_note: null, verification_submitted_at: new Date() });
+    await audit(req, 'VERIFICATION_SUBMITTED', { targetType: 'provider', targetId: provider.id });
+    return res.json({ message: 'Submitted. An admin will review it shortly.', verification_status: 'pending' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to submit verification.', error: error.message });
   }
 };

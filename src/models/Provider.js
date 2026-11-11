@@ -28,6 +28,19 @@ const Provider = sequelize.define('Provider', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  // unverified (nothing submitted) | pending (submitted, awaiting admin) | verified | rejected
+  verification_status: {
+    type: DataTypes.STRING,
+    defaultValue: 'unverified',
+  },
+  verification_note: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  verification_submitted_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
   is_online: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

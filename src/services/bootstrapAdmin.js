@@ -31,7 +31,12 @@ const bootstrapAdmin = async () => {
       return;
     }
     const existingAdmin = await User.findOne({ where: { role: 'admin' } });
-    if (existingAdmin) return;
+    if (existingAdmin) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('[admin] ADMIN_EMAIL/ADMIN_PASSWORD are not set. Set them so the admin password is not a default.');
+      }
+      return;
+    }
     const [user, created] = await User.findOrCreate({
       where: { email: 'admin@test.com' },
       defaults: {

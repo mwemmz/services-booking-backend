@@ -43,6 +43,11 @@ const COLUMN_MIGRATIONS = [
   { table: 'categories', column: 'image_url', definition: 'VARCHAR(255)' },
   { table: 'categories', column: 'display_order', definition: 'INTEGER' },
   { table: 'services', column: 'catalog_service_id', definition: 'UUID' },
+  { table: 'users', column: 'failed_login_attempts', definition: 'INTEGER DEFAULT 0' },
+  { table: 'users', column: 'locked_until', definition: 'TIMESTAMP WITH TIME ZONE' },
+  { table: 'providers', column: 'verification_status', definition: "VARCHAR(255) DEFAULT 'unverified'" },
+  { table: 'providers', column: 'verification_note', definition: 'TEXT' },
+  { table: 'providers', column: 'verification_submitted_at', definition: 'TIMESTAMP WITH TIME ZONE' },
 ];
 
 const applyColumnMigrations = async () => {
@@ -53,6 +58,17 @@ const applyColumnMigrations = async () => {
     } catch (error) {
       console.warn(`[migration] skipped ${table}.${column}: ${error.message}`);
     }
+  }
+};
+
+/** Providers an admin approved before verification_status existed count as verified. */
+const backfillVerificationStatus = async () => {
+  try {
+    await sequelize.query(
+      "UPDATE providers SET verification_status = 'verified' WHERE is_verified = true AND (verification_status IS NULL OR verification_status = 'unverified')",
+    );
+  } catch (error) {
+    console.warn(`[migration] verification backfill skipped: ${error.message}`);
   }
 };
 
@@ -84,6 +100,7 @@ const backfillCategorySlugs = async () => {
 
 const applyCatalogMigrations = async () => {
   await applyColumnMigrations();
+  await backfillVerificationStatus();
   await backfillCategorySlugs();
 
   try {

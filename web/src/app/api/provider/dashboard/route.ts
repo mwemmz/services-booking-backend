@@ -46,7 +46,7 @@ export const GET = route(async () => {
     completedJobs: done.length,
     rating: Number(me.provider.rating ?? 0),
     reviewCount: Number(me.provider.total_reviews ?? 0),
-    verificationStatus: me.provider.is_verified ? "VERIFIED" : "PENDING",
+    verificationStatus: me.provider.is_verified ? "VERIFIED" : "PENDING",  // dashboard only needs verified vs not
     services: (svc.services ?? []).map((s) => ({
       id: s.id,
       serviceId: s.catalog_service_id ?? s.id,

@@ -233,6 +233,8 @@ type ApiProvider = {
   rating: string | number | null;
   total_reviews: number | null;
   is_verified: boolean;
+  verification_status?: string | null;
+  verification_note?: string | null;
   verification_documents: { id_document_url?: string } | null;
   is_online: boolean;
 };
@@ -269,7 +271,8 @@ export async function me(): Promise<Me> {
         id: record.id,
         businessName: record.business_name ?? user.name,
         bio: record.description ?? "",
-        verificationStatus: record.is_verified ? "VERIFIED" : "PENDING",
+        verificationStatus: record.is_verified ? "VERIFIED" : (record.verification_status ?? "unverified").toUpperCase(),
+        verificationNote: record.verification_note ?? "",
         serviceArea: record.service_area ?? "",
         baseAddress: record.address,
         rating: toNumber(record.rating) ?? 0,

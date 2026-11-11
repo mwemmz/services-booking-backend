@@ -10,6 +10,7 @@ export type Me = {
     businessName: string;
     bio: string;
     verificationStatus: string;
+    verificationNote?: string;
     serviceArea: string;
     baseAddress: string | null;
     rating: number;

@@ -10,6 +10,7 @@ const {
   getMyProviderProfile,
   getMyAvailability,
   replaceMyAvailability,
+  submitVerification,
 } = require('../controllers/providerController');
 const { getOpportunities } = require('../controllers/geoController');
 const { authenticate, authorize } = require('../middleware/auth');
@@ -28,6 +29,7 @@ router.get('/nearby', authenticate, getNearbyProviders);
 router.get('/me', authenticate, getMyProviderProfile);
 router.get('/me/availability', authenticate, getMyAvailability);
 router.put('/me/availability', authenticate, replaceMyAvailability);
+router.post('/me/verification', authenticate, authorize('provider'), submitVerification);
 router.get('/:id', getProviderById);
 router.put('/:id', authenticate, [...updateProviderRules, validate], updateProvider);
 router.put('/:id/status', authenticate, toggleOnlineStatus);

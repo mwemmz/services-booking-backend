@@ -28,6 +28,7 @@ export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }:
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exists, setExists] = useState(false);
 
   const identifierProblem = () => {
     const text = identifier.trim();
@@ -62,6 +63,7 @@ export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }:
       router.replace(result.home);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : mode === "signin" ? "Login failed" : "Unable to create your account.");
+      setExists(mode === "signup" && err instanceof ApiError && err.status === 409);
       setLoading(false);
     }
   }
@@ -69,7 +71,7 @@ export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }:
   const tab = (value: Mode, label: string) => (
     <button
       type="button"
-      onClick={() => { setMode(value); setError(""); }}
+      onClick={() => { setMode(value); setError(""); setExists(false); }}
       className={`h-11 flex-1 rounded-full text-sm font-semibold transition ${mode === value ? "bg-forest text-white" : "text-[#4a3120]"}`}
     >
       {label}
@@ -106,6 +108,11 @@ export function AuthScreen({ initialMode = "signin", initialRole = "CUSTOMER" }:
           <div className="flex gap-1 rounded-full bg-sand p-1">{tab("signin", "Sign in")}{tab("signup", "Create account")}</div>
           <form onSubmit={submit} className="mt-4 space-y-3.5" noValidate>
             {error && <Banner>{error}</Banner>}
+            {exists && (
+              <Button type="button" variant="soft" onClick={() => { setMode("signin"); setIdentifier(phone); setPassword(""); setError(""); setExists(false); }}>
+                Sign in instead
+              </Button>
+            )}
             {mode === "signin" ? (
               <>
                 <Gate id="identifier" gate={signinGate}>

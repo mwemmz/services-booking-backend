@@ -233,6 +233,7 @@ export function toMe(
       businessName: string;
       bio: string;
       verificationStatus: string;
+      verificationNote?: string;
       serviceArea: string;
       baseAddress: string | null;
       rating: number;
@@ -258,6 +259,7 @@ export function toMe(
           businessName: user.providerProfile.businessName,
           bio: user.providerProfile.bio,
           verificationStatus: user.providerProfile.verificationStatus,
+          verificationNote: user.providerProfile.verificationNote ?? "",
           serviceArea: user.providerProfile.serviceArea,
           baseAddress: user.providerProfile.baseAddress,
           rating: user.providerProfile.rating,

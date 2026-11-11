@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/client";
 import { formatStamp, kwacha } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/statuses";
-import { Avatar, Banner, Button, EmptyState, LoadingBlock, Screen, SectionTitle, StatusPill } from "@/components/ui";
+import { Avatar, Banner, Button, EmptyState, Field, LoadingBlock, Screen, SectionTitle, StatusPill, TextInput } from "@/components/ui";
 
 type Pagination = { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean };
 
@@ -15,6 +15,7 @@ type RawUser = {
   phone?: string | null;
   role: string;
   is_active?: boolean;
+  locked_until?: string | null;
   profile_image?: string | null;
   createdAt: string;
 };
@@ -24,10 +25,12 @@ type RawProvider = {
   business_name?: string | null;
   category?: string | null;
   is_verified: boolean;
+  verification_status?: string | null;
+  verification_note?: string | null;
   rating?: string | number | null;
   total_reviews?: number | null;
   createdAt: string;
-  user?: { name: string; email: string } | null;
+  user?: { name: string; email: string; phone?: string | null; national_id_number?: string | null } | null;
 };
 
 type RawBooking = {
@@ -160,6 +163,21 @@ export function AdminUsers() {
   const [rows, setRows] = useState<RawUser[] | null>(null);
   const [meta, setMeta] = useState<Pagination | null>(null);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function setActive(user: RawUser, active: boolean) {
+    if (!active && !window.confirm(`Suspend ${user.name}? They will be signed out and cannot log in until reactivated.`)) return;
+    setBusy(user.id);
+    setError("");
+    try {
+      await api(`/api/admin/users/${user.id}/${active ? "reactivate" : "suspend"}`, { method: "PUT" });
+      setRows((current) => current?.map((row) => (row.id === user.id ? { ...row, is_active: active } : row)) ?? null);
+    } catch (err) {
+      setError(errorMessage(err, "Unable to change this account."));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -215,10 +233,22 @@ export function AdminUsers() {
               <p className="truncate font-semibold">{user.name}</p>
               <p className="truncate text-xs text-muted">{user.email}</p>
             </div>
-            <StatusPill
-              status={user.role === "admin" ? "COMPLETED" : user.role === "provider" ? "ACCEPTED" : "PENDING"}
-              label={user.role === "admin" ? "Admin" : user.role === "provider" ? "Provider" : "Customer"}
-            />
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <StatusPill
+                status={user.is_active === false ? "CANCELLED" : user.role === "admin" ? "COMPLETED" : user.role === "provider" ? "ACCEPTED" : "PENDING"}
+                label={user.is_active === false ? "Suspended" : user.role === "admin" ? "Admin" : user.role === "provider" ? "Provider" : "Customer"}
+              />
+              {user.role !== "admin" && (
+                <button
+                  type="button"
+                  onClick={() => setActive(user, user.is_active === false)}
+                  disabled={busy === user.id}
+                  className="text-[11px] font-semibold text-forest underline underline-offset-2 disabled:opacity-60"
+                >
+                  {user.is_active === false ? "Reactivate" : "Suspend"}
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -238,8 +268,9 @@ export function AdminUsers() {
 
 const providerFilters = [
   { id: "", label: "All" },
-  { id: "false", label: "Pending review" },
+  { id: "pending", label: "Awaiting review" },
   { id: "true", label: "Verified" },
+  { id: "rejected", label: "Rejected" },
 ];
 
 export function AdminProviders() {
@@ -249,12 +280,15 @@ export function AdminProviders() {
   const [meta, setMeta] = useState<Pagination | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
 
   useEffect(() => {
     let stop = false;
     if (page === 1) setRows(null);
     const query = new URLSearchParams({ page: String(page) });
-    if (verified) query.set("is_verified", verified);
+    if (verified === "true") query.set("is_verified", "true");
+    else if (verified) query.set("status", verified);
     api<{ providers: RawProvider[]; pagination: Pagination }>(`/api/admin/providers?${query.toString()}`)
       .then((res) => {
         if (stop) return;
@@ -277,9 +311,24 @@ export function AdminProviders() {
     setError("");
     try {
       await api(`/api/admin/providers/${id}/verify`, { method: "PUT" });
-      setRows((current) => current?.map((row) => (row.id === id ? { ...row, is_verified: true } : row)) ?? null);
+      setRows((current) => current?.map((row) => (row.id === id ? { ...row, is_verified: true, verification_status: "verified" } : row)) ?? null);
     } catch (err) {
       setError(errorMessage(err, "Unable to verify this provider."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function reject(id: string) {
+    setBusy(id);
+    setError("");
+    try {
+      await api(`/api/admin/providers/${id}/reject`, { method: "PUT", body: JSON.stringify({ reason }) });
+      setRows((current) => current?.map((row) => (row.id === id ? { ...row, is_verified: false, verification_status: "rejected", verification_note: reason } : row)) ?? null);
+      setRejecting(null);
+      setReason("");
+    } catch (err) {
+      setError(errorMessage(err, "Unable to reject this provider."));
     } finally {
       setBusy(null);
     }
@@ -305,8 +354,8 @@ export function AdminProviders() {
                 </p>
               </div>
               <StatusPill
-                status={provider.is_verified ? "COMPLETED" : "PENDING"}
-                label={provider.is_verified ? "Verified" : "Pending"}
+                status={provider.is_verified ? "COMPLETED" : provider.verification_status === "rejected" ? "REJECTED" : "PENDING"}
+                label={provider.is_verified ? "Verified" : provider.verification_status === "pending" ? "Awaiting review" : provider.verification_status === "rejected" ? "Rejected" : "Not submitted"}
               />
             </div>
             <div className="mt-2 flex items-center justify-between gap-3">
@@ -314,17 +363,43 @@ export function AdminProviders() {
                 {provider.category ? `${provider.category} · ` : ""}
                 {Number(provider.rating ?? 0).toFixed(1)} ★ ({provider.total_reviews ?? 0} reviews)
               </p>
-              {!provider.is_verified && (
+            </div>
+            {provider.user?.national_id_number && !provider.is_verified && (
+              <p className="mt-2 text-xs"><span className="text-muted">NRC submitted:</span> <span className="font-semibold">{provider.user.national_id_number}</span></p>
+            )}
+            {provider.verification_status === "rejected" && provider.verification_note && (
+              <p className="mt-1 text-xs text-muted">Reason given: {provider.verification_note}</p>
+            )}
+            {!provider.is_verified && rejecting !== provider.id && (
+              <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   onClick={() => verify(provider.id)}
                   disabled={busy === provider.id}
                   className="btn-3d btn-3d-success rounded-full px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60"
                 >
-                  {busy === provider.id ? "Verifying..." : "Verify"}
+                  {busy === provider.id ? "Working..." : "Approve"}
                 </button>
-              )}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => { setRejecting(provider.id); setReason(""); }}
+                  className="btn-3d btn-3d-light rounded-full px-3 py-1.5 text-[11px] font-semibold"
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+            {rejecting === provider.id && (
+              <div className="mt-3 space-y-2">
+                <Field label="Reason (the provider will see this)">
+                  <TextInput value={reason} onChange={(event) => setReason(event.target.value)} placeholder="For example: NRC number does not match your name" />
+                </Field>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => reject(provider.id)} disabled={busy === provider.id || reason.trim().length < 5} className="btn-3d btn-3d-danger rounded-full px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60">Send rejection</button>
+                  <button type="button" onClick={() => setRejecting(null)} className="btn-3d btn-3d-light rounded-full px-3 py-1.5 text-[11px] font-semibold">Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -415,6 +490,101 @@ export function AdminBookings() {
         <p className="mt-3 text-center text-xs text-muted">
           Page {meta.page} of {Math.max(meta.totalPages, 1)}
         </p>
+      )}
+    </Screen>
+  );
+}
+
+
+type SecurityEvent = { id: string; actor_name?: string | null; action: string; detail?: string | null; ip?: string | null; createdAt: string };
+type Security = {
+  lockedUsers: Array<{ id: string; name: string; email: string; role: string; locked_until: string }>;
+  suspendedCount: number;
+  pendingVerifications: number;
+  lockoutsToday: number;
+  events: SecurityEvent[];
+};
+
+const EVENT_LABEL: Record<string, string> = {
+  ADMIN_LOGIN: "Admin signed in",
+  LOGIN_LOCKED: "Account locked after wrong passwords",
+  USER_SUSPENDED: "Account suspended",
+  USER_REACTIVATED: "Account reactivated",
+  USER_UNLOCKED: "Account unlocked",
+  PROVIDER_APPROVED: "Provider approved",
+  PROVIDER_REJECTED: "Provider rejected",
+  VERIFICATION_SUBMITTED: "Provider sent NRC for review",
+};
+
+export function AdminSecurity() {
+  const [data, setData] = useState<Security | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = () =>
+    api<Security>("/api/admin/security")
+      .then(setData)
+      .catch((err) => setError(errorMessage(err, "Unable to load security details.")));
+
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 15000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function unlock(id: string) {
+    setBusy(id);
+    try {
+      await api(`/api/admin/users/${id}/unlock`, { method: "PUT" });
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Unable to unlock this account."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Screen>
+      <SectionTitle title="Security" />
+      {error && <div className="mt-4"><Banner>{error}</Banner></div>}
+      {!data && !error && <div className="mt-4"><LoadingBlock label="Loading security..." /></div>}
+      {data && (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard label="Awaiting review" value={String(data.pendingVerifications)} />
+            <StatCard label="Locked out now" value={String(data.lockedUsers.length)} />
+            <StatCard label="Lockouts, 24 hours" value={String(data.lockoutsToday)} />
+            <StatCard label="Suspended" value={String(data.suspendedCount)} />
+          </div>
+
+          <h2 className="mt-6 font-display text-[1.2rem]">Locked accounts</h2>
+          {data.lockedUsers.length === 0 && <p className="mt-2 text-sm text-muted">Nobody is locked out. Five wrong passwords in a row lock an account for 15 minutes.</p>}
+          <div className="mt-2 space-y-2">
+            {data.lockedUsers.map((user) => (
+              <div key={user.id} className="flex items-center gap-3 rounded-[22px] border border-line bg-card p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{user.name}</p>
+                  <p className="truncate text-xs text-muted">{user.email} · until {formatStamp(user.locked_until)}</p>
+                </div>
+                <button type="button" onClick={() => unlock(user.id)} disabled={busy === user.id} className="btn-3d btn-3d-light rounded-full px-3 py-1.5 text-[11px] font-semibold disabled:opacity-60">Unlock</button>
+              </div>
+            ))}
+          </div>
+
+          <h2 className="mt-6 font-display text-[1.2rem]">Recent activity</h2>
+          {data.events.length === 0 && <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>}
+          <div className="mt-2 divide-y divide-line rounded-[22px] border border-line bg-card">
+            {data.events.map((event) => (
+              <div key={event.id} className="px-4 py-2.5">
+                <p className="text-sm font-semibold">{EVENT_LABEL[event.action] ?? event.action}</p>
+                <p className="text-xs text-muted">
+                  {[event.actor_name, event.detail, formatStamp(event.createdAt)].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </Screen>
   );

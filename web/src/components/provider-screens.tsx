@@ -209,7 +209,11 @@ export function ProviderHome() {
         <div className="hero-copy relative z-10 flex h-full w-[50%] flex-col justify-center px-4 py-4">
           <p className="text-[15px] font-medium leading-snug text-[#5c4636] lg:text-xl">Here&apos;s what&apos;s happening with your services today.</p>
           <div className="mt-3 w-fit rounded-full bg-[#e5f6ec] px-2.5 py-1">
-            {me.provider?.verificationStatus === "VERIFIED" ? <Verified /> : <p className="text-xs font-semibold text-[#2a1c12]">Your account is under review.</p>}
+            {me.provider?.verificationStatus === "VERIFIED" ? <Verified /> : (
+              <Link href="/provider/verification" className="text-xs font-semibold text-[#2a1c12] underline underline-offset-2">
+                {me.provider?.verificationStatus === "PENDING" ? "Under review" : me.provider?.verificationStatus === "REJECTED" ? "Needs changes: fix and resubmit" : "Get verified"}
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -1196,6 +1200,59 @@ export function AvailabilityScreen() {
           }
         }}>Save availability</Button>
       </div>
+    </Screen>
+  );
+}
+
+
+export function VerificationScreen() {
+  const { me, refresh } = useApp();
+  const [nrc, setNrc] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const status = sent ? "PENDING" : me.provider?.verificationStatus ?? "";
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/provider/verification", { method: "POST", body: JSON.stringify({ nrc }) });
+      setSent(true);
+      refresh().catch(() => undefined);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to submit. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Screen>
+      <BackLink href="/provider/home" />
+      <h1 className="mt-3 font-display text-[1.6rem] leading-tight">Get verified</h1>
+      <p className="mt-1 text-sm text-muted">Verified providers show a badge to customers. An admin checks your NRC number before approving it.</p>
+      {error && <div className="mt-4"><Banner>{error}</Banner></div>}
+      {status === "VERIFIED" && <div className="mt-5 rounded-[22px] border border-line bg-card p-4"><Verified /><p className="mt-1 text-sm">Your account is verified. Nothing more to do.</p></div>}
+      {status === "PENDING" && (
+        <div className="mt-5 rounded-[22px] border border-line bg-card p-4">
+          <StatusPill status="PENDING" label="Under review" />
+          <p className="mt-2 text-sm">We have your NRC number. An admin will review it and you will get a notification.</p>
+        </div>
+      )}
+      {(status === "UNVERIFIED" || status === "REJECTED") && (
+        <form onSubmit={submit} className="mt-5 space-y-4">
+          {status === "REJECTED" && me.provider?.verificationNote && (
+            <Banner>Not approved: {me.provider.verificationNote}</Banner>
+          )}
+          <Field label="NRC number">
+            <TextInput value={nrc} onChange={(event) => setNrc(event.target.value)} inputMode="numeric" placeholder="123456/78/9" autoComplete="off" />
+          </Field>
+          <Button type="submit" loading={busy}>Submit for review</Button>
+        </form>
+      )}
     </Screen>
   );
 }

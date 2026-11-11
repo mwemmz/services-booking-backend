@@ -22,6 +22,7 @@ const PaymentMethod = require('./PaymentMethod');
 const PortfolioItem = require('./PortfolioItem');
 const BookingStatusHistory = require('./BookingStatusHistory');
 const Transaction = require('./Transaction');
+const AuditLog = require('./AuditLog');
 
 User.hasOne(Provider, { foreignKey: 'user_id', as: 'providerProfile' });
 Provider.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -150,4 +151,5 @@ Category,
   PortfolioItem,
   BookingStatusHistory,
   Transaction,
+  AuditLog,
 };

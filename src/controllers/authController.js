@@ -1,8 +1,12 @@
-const { Op } = require('sequelize');
+const { Op, where: sqlWhere, fn, col } = require('sequelize');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 const { User } = require('../models');
 const { sendPasswordReset, sendEmailVerification } = require('../services/emailService');
+const { audit } = require('../services/auditService');
+
+const MAX_FAILED_LOGINS = 5;
+const LOCK_MINUTES = 15;
 
 const generateAccessToken = (user) => {
   return jwt.sign({ id: user.id, role: user.role }, config.jwt.secret, {
@@ -26,9 +30,17 @@ exports.register = async (req, res) => {
     const allowedRoles = ['customer', 'provider'];
     const role = allowedRoles.includes(req.body.role) ? req.body.role : 'customer';
 
-    const existing = await User.findOne({ where: { email } });
-    if (existing) {
-      return res.status(409).json({ message: 'Email already in use.' });
+    const taken = await User.findOne({
+      where: { [Op.or]: [sqlWhere(fn('lower', col('email')), String(email).toLowerCase()), ...(phone ? [{ phone }] : [])] },
+    });
+    if (taken) {
+      const byPhone = phone && taken.phone === phone;
+      return res.status(409).json({
+        code: 'ACCOUNT_EXISTS',
+        message: byPhone
+          ? 'An account with this phone number already exists. Sign in instead.'
+          : 'An account with this email already exists. Sign in instead.',
+      });
     }
 
     const user = await User.create({ name, email, password_hash: password, phone, role });
@@ -67,13 +79,36 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
+    // Lockout: too many wrong passwords in a row pauses sign-in for a while.
+    if (user.locked_until && user.locked_until > new Date()) {
+      const minutes = Math.max(1, Math.ceil((user.locked_until - new Date()) / 60000));
+      return res.status(423).json({
+        code: 'ACCOUNT_LOCKED',
+        message: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      });
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      const attempts = (user.failed_login_attempts || 0) + 1;
+      if (attempts >= MAX_FAILED_LOGINS) {
+        await user.update({ failed_login_attempts: 0, locked_until: new Date(Date.now() + LOCK_MINUTES * 60000) });
+        await audit(req, 'LOGIN_LOCKED', { actor: user, targetType: 'user', targetId: user.id, detail: `${user.role} account locked for ${LOCK_MINUTES} minutes after ${MAX_FAILED_LOGINS} wrong passwords` });
+      } else {
+        await user.update({ failed_login_attempts: attempts });
+      }
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
     if (!user.is_active) {
-      return res.status(403).json({ message: 'Account is deactivated.' });
+      return res.status(403).json({ message: 'This account has been suspended. Contact support.' });
+    }
+
+    if (user.failed_login_attempts || user.locked_until) {
+      await user.update({ failed_login_attempts: 0, locked_until: null });
+    }
+    if (user.role === 'admin') {
+      await audit(req, 'ADMIN_LOGIN', { actor: user, targetType: 'user', targetId: user.id });
     }
 
     const accessToken = generateAccessToken(user);
