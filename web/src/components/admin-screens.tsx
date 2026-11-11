@@ -373,6 +373,20 @@ export function AdminProviders() {
     };
   }, [verified, page]);
 
+  async function approveNow(provider: RawProvider) {
+    if (!window.confirm(`Approve ${provider.business_name || "this provider"} on the spot, without a certificate? This is recorded in the audit log.`)) return;
+    setBusy(provider.id);
+    setError("");
+    try {
+      await api(`/api/admin/providers/${provider.id}/verify`, { method: "PUT" });
+      setRows((current) => current?.map((row) => (row.id === provider.id ? { ...row, is_verified: true, verification_status: "verified" } : row)) ?? null);
+    } catch (err) {
+      setError(errorMessage(err, "Unable to approve this provider."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function validateCert(provider: RawProvider, cert: RawCert) {
     setBusy(cert.id);
     setError("");
@@ -503,6 +517,14 @@ export function AdminProviders() {
             </div>
             {!provider.is_verified && rejecting !== provider.id && (
               <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => approveNow(provider)}
+                  disabled={busy === provider.id}
+                  className="btn-3d btn-3d-success rounded-full px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60"
+                >
+                  {busy === provider.id ? "Working..." : "Approve on the spot"}
+                </button>
                 <button
                   type="button"
                   onClick={() => { setRejecting(provider.id); setReason(""); }}

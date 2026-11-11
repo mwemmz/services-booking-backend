@@ -74,12 +74,13 @@ exports.verifyProvider = async (req, res) => {
     }
 
     const validated = await Certification.count({ where: { provider_id: provider.id, status: 'verified' } });
-    if (validated === 0) {
-      return res.status(400).json({ message: 'Validate a trade certificate first. A provider is verified through a validated certificate.' });
+    const onTheSpot = Boolean(req.body && req.body.onTheSpot);
+    if (validated === 0 && !onTheSpot) {
+      return res.status(400).json({ message: 'Validate a trade certificate first, or approve on the spot.' });
     }
     await provider.update({ is_verified: true, verification_status: 'verified', verification_note: null });
     if (provider.user?.national_id_number) await provider.user.update({ national_id_verified: true });
-    await audit(req, 'PROVIDER_APPROVED', { targetType: 'provider', targetId: provider.id, detail: provider.business_name });
+    await audit(req, validated === 0 ? 'PROVIDER_APPROVED_ON_THE_SPOT' : 'PROVIDER_APPROVED', { targetType: 'provider', targetId: provider.id, detail: provider.business_name });
     await createNotification(provider.user_id, 'verification', 'You are verified', 'An admin approved your account. Customers now see your verified badge.');
 
     return res.json({ message: 'Provider verified.', provider });
