@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
-const { User, Provider, Booking, Service, Payment, AuditLog } = require('../models');
+const { User, Provider, Booking, Service, Payment, AuditLog, Certification } = require('../models');
 const { audit } = require('../services/auditService');
 const { createNotification } = require('../services/notificationService');
 const crypto = require('crypto');
@@ -50,7 +50,8 @@ exports.getAllProviders = async (req, res) => {
 
     const query = paginate({
       where,
-      include: [{ model: User, as: 'user', attributes: publicUserAttributes }],
+      include: [{ model: User, as: 'user', attributes: publicUserAttributes }, { model: Certification, as: 'certifications' }],
+      distinct: true,
       order: [['createdAt', 'DESC']],
     }, { page, limit });
 
@@ -72,6 +73,10 @@ exports.verifyProvider = async (req, res) => {
       return res.status(404).json({ message: 'Provider not found.' });
     }
 
+    const validated = await Certification.count({ where: { provider_id: provider.id, status: 'verified' } });
+    if (validated === 0) {
+      return res.status(400).json({ message: 'Validate a trade certificate first. A provider is verified through a validated certificate.' });
+    }
     await provider.update({ is_verified: true, verification_status: 'verified', verification_note: null });
     if (provider.user?.national_id_number) await provider.user.update({ national_id_verified: true });
     await audit(req, 'PROVIDER_APPROVED', { targetType: 'provider', targetId: provider.id, detail: provider.business_name });

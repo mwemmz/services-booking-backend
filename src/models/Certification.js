@@ -9,6 +9,8 @@ const Certification = sequelize.define('Certification', {
   expiry_date: { type: DataTypes.DATE, allowNull: true },
   is_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
   document_url: { type: DataTypes.STRING, allowNull: true },
+  status: { type: DataTypes.STRING, defaultValue: 'pending' },
+  review_note: { type: DataTypes.TEXT, allowNull: true },
 }, { tableName: 'certifications', timestamps: true });
 
 module.exports = Certification;

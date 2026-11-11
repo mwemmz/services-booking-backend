@@ -1205,14 +1205,25 @@ export function AvailabilityScreen() {
 }
 
 
+type MyCert = { id: string; name: string; issuing_body: string; expiry_date?: string | null; status?: string | null; review_note?: string | null };
+
 export function VerificationScreen() {
   const { me, refresh } = useApp();
   const [nrc, setNrc] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [certs, setCerts] = useState<MyCert[] | null>(null);
+  const [cert, setCert] = useState({ name: "", issuingBody: "", expiryDate: "" });
+  const [file, setFile] = useState<File | null>(null);
+  const [certBusy, setCertBusy] = useState(false);
 
   const status = sent ? "PENDING" : me.provider?.verificationStatus ?? "";
+
+  const loadCerts = useCallback(() => {
+    api<MyCert[]>("/api/provider/certificates").then(setCerts).catch(() => setCerts([]));
+  }, []);
+  useEffect(() => { loadCerts(); }, [loadCerts]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -1229,28 +1240,82 @@ export function VerificationScreen() {
     }
   }
 
+  async function addCert(event: React.FormEvent) {
+    event.preventDefault();
+    if (!file) { setError("Attach a photo or PDF of the certificate."); return; }
+    setCertBusy(true);
+    setError("");
+    try {
+      const documentUrl = await uploadImage(file, { private: true });
+      await api("/api/provider/certificates", { method: "POST", body: JSON.stringify({ ...cert, documentUrl }) });
+      setCert({ name: "", issuingBody: "", expiryDate: "" });
+      setFile(null);
+      loadCerts();
+      refresh().catch(() => undefined);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to add the certificate. Try again.");
+    } finally {
+      setCertBusy(false);
+    }
+  }
+
   return (
     <Screen>
       <BackLink href="/provider/home" />
       <h1 className="mt-3 font-display text-[1.6rem] leading-tight">Get verified</h1>
-      <p className="mt-1 text-sm text-muted">Verified providers show a badge to customers. An admin checks your NRC number before approving it.</p>
+      <p className="mt-1 text-sm text-muted">Add a trade certificate. An admin checks it, and once it is validated you get the verified badge.</p>
       {error && <div className="mt-4"><Banner>{error}</Banner></div>}
       {status === "VERIFIED" && <div className="mt-5 rounded-[22px] border border-line bg-card p-4"><Verified /><p className="mt-1 text-sm">Your account is verified. Nothing more to do.</p></div>}
-      {status === "PENDING" && (
+      {status === "PENDING" && (certs ?? []).length > 0 && (
         <div className="mt-5 rounded-[22px] border border-line bg-card p-4">
           <StatusPill status="PENDING" label="Under review" />
-          <p className="mt-2 text-sm">We have your NRC number. An admin will review it and you will get a notification.</p>
+          <p className="mt-2 text-sm">An admin will review your certificate and you will get a notification.</p>
         </div>
       )}
+      {status === "REJECTED" && me.provider?.verificationNote && <div className="mt-4"><Banner>Not approved: {me.provider.verificationNote}</Banner></div>}
+
+      {(certs ?? []).length > 0 && (
+        <div className="mt-5 space-y-2">
+          <p className="text-sm font-semibold">Your certificates</p>
+          {(certs ?? []).map((c) => (
+            <div key={c.id} className="flex items-start justify-between gap-2 rounded-[22px] border border-line bg-card p-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{c.name}</p>
+                <p className="truncate text-xs text-muted">{c.issuing_body}</p>
+                {c.status === "rejected" && c.review_note && <p className="mt-1 text-xs text-muted">Reason: {c.review_note}</p>}
+              </div>
+              <StatusPill status={c.status === "verified" ? "COMPLETED" : c.status === "rejected" ? "REJECTED" : "PENDING"} label={c.status === "verified" ? "Validated" : c.status === "rejected" ? "Rejected" : "Under review"} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {status !== "VERIFIED" && (
+        <form onSubmit={addCert} className="mt-5 space-y-4">
+          <p className="text-sm font-semibold">Add a trade certificate</p>
+          <Field label="Certificate name">
+            <TextInput value={cert.name} onChange={(event) => setCert({ ...cert, name: event.target.value })} placeholder="For example: Electrical Wireman" />
+          </Field>
+          <Field label="Issued by">
+            <TextInput value={cert.issuingBody} onChange={(event) => setCert({ ...cert, issuingBody: event.target.value })} placeholder="For example: TEVETA or ERB" />
+          </Field>
+          <Field label="Expiry date (if it has one)">
+            <TextInput type="date" value={cert.expiryDate} onChange={(event) => setCert({ ...cert, expiryDate: event.target.value })} />
+          </Field>
+          <Field label="Photo or PDF of the certificate">
+            <input type="file" accept="image/*,application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="block w-full text-sm" />
+          </Field>
+          <Button type="submit" loading={certBusy}>Submit certificate</Button>
+        </form>
+      )}
+
       {(status === "UNVERIFIED" || status === "REJECTED") && (
-        <form onSubmit={submit} className="mt-5 space-y-4">
-          {status === "REJECTED" && me.provider?.verificationNote && (
-            <Banner>Not approved: {me.provider.verificationNote}</Banner>
-          )}
+        <form onSubmit={submit} className="mt-8 space-y-4">
+          <p className="text-sm font-semibold">Optional: your NRC number</p>
           <Field label="NRC number">
             <TextInput value={nrc} onChange={(event) => setNrc(event.target.value)} inputMode="numeric" placeholder="123456/78/9" autoComplete="off" />
           </Field>
-          <Button type="submit" loading={busy}>Submit for review</Button>
+          <Button type="submit" variant="ghost" loading={busy}>Save NRC number</Button>
         </form>
       )}
     </Screen>

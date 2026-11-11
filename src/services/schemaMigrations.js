@@ -48,6 +48,8 @@ const COLUMN_MIGRATIONS = [
   { table: 'providers', column: 'verification_status', definition: "VARCHAR(255) DEFAULT 'unverified'" },
   { table: 'providers', column: 'verification_note', definition: 'TEXT' },
   { table: 'providers', column: 'verification_submitted_at', definition: 'TIMESTAMP WITH TIME ZONE' },
+  { table: 'certifications', column: 'status', definition: "VARCHAR(255) DEFAULT 'pending'" },
+  { table: 'certifications', column: 'review_note', definition: 'TEXT' },
 ];
 
 const applyColumnMigrations = async () => {
@@ -69,6 +71,15 @@ const backfillVerificationStatus = async () => {
     );
   } catch (error) {
     console.warn(`[migration] verification backfill skipped: ${error.message}`);
+  }
+};
+
+/** Certificates an admin verified before the status column existed count as verified. */
+const backfillCertificateStatus = async () => {
+  try {
+    await sequelize.query("UPDATE certifications SET status = 'verified' WHERE is_verified = true AND (status IS NULL OR status = 'pending')");
+  } catch (error) {
+    console.warn(`[migration] certificate backfill skipped: ${error.message}`);
   }
 };
 
@@ -101,6 +112,7 @@ const backfillCategorySlugs = async () => {
 const applyCatalogMigrations = async () => {
   await applyColumnMigrations();
   await backfillVerificationStatus();
+  await backfillCertificateStatus();
   await backfillCategorySlugs();
 
   try {

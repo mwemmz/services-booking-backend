@@ -20,7 +20,18 @@ type RawUser = {
   createdAt: string;
 };
 
+type RawCert = {
+  id: string;
+  name: string;
+  issuing_body: string;
+  expiry_date?: string | null;
+  document_url?: string | null;
+  status?: string | null;
+  review_note?: string | null;
+};
+
 type RawProvider = {
+  certifications?: RawCert[];
   id: string;
   business_name?: string | null;
   category?: string | null;
@@ -362,14 +373,33 @@ export function AdminProviders() {
     };
   }, [verified, page]);
 
-  async function verify(id: string) {
-    setBusy(id);
+  async function validateCert(provider: RawProvider, cert: RawCert) {
+    setBusy(cert.id);
     setError("");
     try {
-      await api(`/api/admin/providers/${id}/verify`, { method: "PUT" });
-      setRows((current) => current?.map((row) => (row.id === id ? { ...row, is_verified: true, verification_status: "verified" } : row)) ?? null);
+      await api(`/api/admin/certificates/${cert.id}/approve`, { method: "PUT" });
+      setRows((current) => current?.map((row) => (row.id === provider.id
+        ? { ...row, is_verified: true, verification_status: "verified", certifications: row.certifications?.map((c) => (c.id === cert.id ? { ...c, status: "verified" } : c)) }
+        : row)) ?? null);
     } catch (err) {
-      setError(errorMessage(err, "Unable to verify this provider."));
+      setError(errorMessage(err, "Unable to validate this certificate."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function rejectCert(provider: RawProvider, cert: RawCert) {
+    setBusy(cert.id);
+    setError("");
+    try {
+      await api(`/api/admin/certificates/${cert.id}/reject`, { method: "PUT", body: JSON.stringify({ reason }) });
+      setRows((current) => current?.map((row) => (row.id === provider.id
+        ? { ...row, verification_status: row.is_verified ? row.verification_status : "rejected", verification_note: reason, certifications: row.certifications?.map((c) => (c.id === cert.id ? { ...c, status: "rejected", review_note: reason } : c)) }
+        : row)) ?? null);
+      setRejecting(null);
+      setReason("");
+    } catch (err) {
+      setError(errorMessage(err, "Unable to reject this certificate."));
     } finally {
       setBusy(null);
     }
@@ -426,22 +456,59 @@ export function AdminProviders() {
             {provider.verification_status === "rejected" && provider.verification_note && (
               <p className="mt-1 text-xs text-muted">Reason given: {provider.verification_note}</p>
             )}
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-muted">Trade certificates</p>
+              {(provider.certifications ?? []).length === 0 && <p className="mt-1 text-xs text-muted">None submitted yet.</p>}
+              {(provider.certifications ?? []).map((cert) => (
+                <div key={cert.id} className="mt-2 rounded-2xl border border-line p-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{cert.name}</p>
+                      <p className="truncate text-xs text-muted">
+                        {cert.issuing_body}
+                        {cert.expiry_date ? ` · expires ${new Date(cert.expiry_date).toLocaleDateString()}` : ""}
+                      </p>
+                    </div>
+                    <StatusPill
+                      status={cert.status === "verified" ? "COMPLETED" : cert.status === "rejected" ? "REJECTED" : "PENDING"}
+                      label={cert.status === "verified" ? "Validated" : cert.status === "rejected" ? "Rejected" : "To review"}
+                    />
+                  </div>
+                  {cert.document_url && (
+                    <a href={cert.document_url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold text-forest underline underline-offset-2">View document</a>
+                  )}
+                  {cert.status === "rejected" && cert.review_note && <p className="mt-1 text-xs text-muted">Reason: {cert.review_note}</p>}
+                  {cert.status !== "verified" && rejecting !== cert.id && (
+                    <div className="mt-2 flex gap-2">
+                      <button type="button" onClick={() => validateCert(provider, cert)} disabled={busy === cert.id} className="btn-3d btn-3d-success rounded-full px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60">
+                        {busy === cert.id ? "Working..." : "Validate certificate"}
+                      </button>
+                      <button type="button" onClick={() => { setRejecting(cert.id); setReason(""); }} className="btn-3d btn-3d-light rounded-full px-3 py-1.5 text-[11px] font-semibold">Reject</button>
+                    </div>
+                  )}
+                  {rejecting === cert.id && (
+                    <div className="mt-2 space-y-2">
+                      <Field label="Reason (the provider will see this)">
+                        <TextInput value={reason} onChange={(event) => setReason(event.target.value)} placeholder="For example: the certificate is not readable" />
+                      </Field>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => rejectCert(provider, cert)} disabled={busy === cert.id || reason.trim().length < 5} className="btn-3d btn-3d-danger rounded-full px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60">Send rejection</button>
+                        <button type="button" onClick={() => setRejecting(null)} className="btn-3d btn-3d-light rounded-full px-3 py-1.5 text-[11px] font-semibold">Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {!provider.is_verified && (provider.certifications ?? []).length > 0 && <p className="mt-2 text-xs text-muted">Validating one certificate verifies the provider.</p>}
+            </div>
             {!provider.is_verified && rejecting !== provider.id && (
               <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => verify(provider.id)}
-                  disabled={busy === provider.id}
-                  className="btn-3d btn-3d-success rounded-full px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60"
-                >
-                  {busy === provider.id ? "Working..." : "Approve"}
-                </button>
                 <button
                   type="button"
                   onClick={() => { setRejecting(provider.id); setReason(""); }}
                   className="btn-3d btn-3d-light rounded-full px-3 py-1.5 text-[11px] font-semibold"
                 >
-                  Reject
+                  Reject provider
                 </button>
               </div>
             )}
