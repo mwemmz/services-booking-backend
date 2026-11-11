@@ -301,6 +301,9 @@ exports.updateBookingStatus = async (req, res) => {
     // is a decision they actually make rather than one already imposed on them.
     const isQuote = status === 'accepted' && quotedPrice !== undefined && quotedPrice !== null;
     let quoteAmount = null;
+    if (isQuote && booking.quoted_price !== null && booking.quoted_price !== undefined) {
+      return res.status(409).json({ message: 'You have already set the price for this booking. It cannot be changed.' });
+    }
     if (isQuote) {
       quoteAmount = Number(quotedPrice);
       if (!Number.isFinite(quoteAmount) || quoteAmount < 1) {

@@ -321,8 +321,8 @@ export function ProviderHome() {
                     <StatusPill status={booking.status} label={STATUS_LABEL[booking.status]} />
                   </div>
                   <label className="mt-3 block text-xs font-semibold text-muted">
-                    Your price (K)
-                    <input value={quote} inputMode="numeric" onChange={(event) => { setQuoteErrorId(""); setQuoteById((current) => ({ ...current, [booking.id]: event.target.value.replace(/[^\d]/g, "") })); }} className="mt-1 h-11 w-full rounded-2xl border border-line bg-card px-3 text-sm text-ink outline-none" />
+                    {booking.quotedPrice != null ? "Your price (K), already sent and locked" : "Your price (K)"}
+                    <input value={booking.quotedPrice != null ? String(booking.quotedPrice) : quote} readOnly={booking.quotedPrice != null} inputMode="numeric" onChange={(event) => { setQuoteErrorId(""); setQuoteById((current) => ({ ...current, [booking.id]: event.target.value.replace(/[^\d]/g, "") })); }} className={`mt-1 h-11 w-full rounded-2xl border border-line px-3 text-sm text-ink outline-none ${booking.quotedPrice != null ? "bg-line/40" : "bg-card"}`} />
                     {quoteErrorId === booking.id && <span className="mt-1 block text-xs font-medium text-danger">{priceKwacha(quote) || "Enter a valid price in kwacha."}</span>}
                   </label>
                   {declineId === booking.id && (
@@ -335,7 +335,7 @@ export function ProviderHome() {
                   )}
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <Button variant="ghost" disabled={busyId === booking.id} onClick={() => declineId === booking.id ? runBooking(booking.id, `/api/bookings/${booking.id}/reject`, { reason }) : setDeclineId(booking.id)}>Decline</Button>
-                    <Button variant="success" disabled={busyId === booking.id} onClick={() => { if (priceKwacha(quote)) { setQuoteErrorId(booking.id); return; } runBooking(booking.id, `/api/bookings/${booking.id}/accept`, { price: Number(quote) }); }}>Accept</Button>
+                    <Button variant="success" disabled={busyId === booking.id || booking.quotedPrice != null} onClick={() => { if (priceKwacha(quote)) { setQuoteErrorId(booking.id); return; } runBooking(booking.id, `/api/bookings/${booking.id}/accept`, { price: Number(quote) }); }}>{booking.quotedPrice != null ? "Price sent" : "Accept"}</Button>
                   </div>
                   <Link href={`/provider/bookings/${booking.id}`} className="mt-2 inline-block text-sm font-semibold text-brown">View request</Link>
                 </article>
@@ -1051,10 +1051,16 @@ export function ProviderJob({ id }: { id: string }) {
       <div className="mt-3"><Link href={`/provider/messages/${id}`} className="text-sm font-semibold text-brown">Message customer</Link></div>
       {booking.status === "PENDING" && (
         <div className="mt-4 space-y-3">
-          <Field label="Your price (K)" error={quoteError}>
-            <TextInput value={quote} onChange={(event) => { setQuoteError(""); setQuote(event.target.value.replace(/[^\d]/g, "")); }} inputMode="numeric" placeholder={String(booking.price)} />
-          </Field>
-          <Button variant="success" onClick={() => { const problem = priceKwacha(quote); if (problem) { setQuoteError(problem); return; } act(`/api/bookings/${id}/accept`, { price: Number(quote) }); }}>Accept request</Button>
+          {booking.quotedPrice != null ? (
+            <p className="rounded-2xl bg-line/40 px-3 py-3 text-sm">Your price: <span className="font-semibold">{kwacha(booking.quotedPrice)}</span>. It has been sent to the customer and cannot be changed.</p>
+          ) : (
+            <>
+              <Field label="Your price (K)" error={quoteError}>
+                <TextInput value={quote} onChange={(event) => { setQuoteError(""); setQuote(event.target.value.replace(/[^\d]/g, "")); }} inputMode="numeric" placeholder={String(booking.price)} />
+              </Field>
+              <Button variant="success" onClick={() => { const problem = priceKwacha(quote); if (problem) { setQuoteError(problem); return; } act(`/api/bookings/${id}/accept`, { price: Number(quote) }); }}>Accept request</Button>
+            </>
+          )}
           <Field label="Decline reason">
             <select value={reason} onChange={(event) => setReason(event.target.value)} className="h-12 w-full rounded-2xl border border-line bg-card px-3 text-sm">
               {["Too far away", "Not available", "Service unavailable", "Price disagreement", "Other"].map((item) => <option key={item}>{item}</option>)}
