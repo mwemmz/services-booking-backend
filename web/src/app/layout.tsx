@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/app-header";
 import { SocketProvider } from "@/contexts/socket-context";
+import { Toaster } from "@/components/toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
             </div>
           </div>
+          <Toaster />
         </SocketProvider>
       </body>
     </html>

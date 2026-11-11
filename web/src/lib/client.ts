@@ -24,7 +24,49 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       response.status,
     );
   }
+  announce(path, init);
   return data as T;
+}
+
+// Show a short success popup for the actions people care about.
+const STATUS_TEXT: Record<string, string> = {
+  "on-the-way": "You are on the way. The customer has been told.",
+  "on_the_way": "You are on the way. The customer has been told.",
+  ON_THE_WAY: "You are on the way. The customer has been told.",
+  ARRIVED: "Marked as arrived.",
+  arrived: "Marked as arrived.",
+  IN_PROGRESS: "Job started.",
+  "in-progress": "Job started.",
+  COMPLETED: "Job completed.",
+  completed: "Job completed.",
+  PAID: "Payment recorded.",
+  paid: "Payment recorded.",
+};
+
+function announce(path: string, init?: RequestInit) {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "GET" || typeof window === "undefined") return;
+  let body: Record<string, unknown> = {};
+  try {
+    if (typeof init?.body === "string") body = JSON.parse(init.body);
+  } catch {}
+  let text = "";
+  if (path === "/api/bookings" && method === "POST") text = "Booking request sent.";
+  else if (/\/api\/bookings\/[^/]+\/accept$/.test(path)) text = body.price ? "Request accepted. Price sent to the customer." : "Request accepted.";
+  else if (/\/confirm$/.test(path)) text = "Price accepted. Booking confirmed.";
+  else if (/\/reject$/.test(path) && path.includes("/bookings/")) text = "Request declined.";
+  else if (/\/api\/bookings\/[^/]+\/cancel$/.test(path)) text = "Booking cancelled.";
+  else if (/\/api\/bookings\/[^/]+\/status$/.test(path)) text = STATUS_TEXT[String(body.status)] ?? "Status updated.";
+  else if (/\/api\/admin\/providers\/[^/]+\/verify$/.test(path)) text = "Provider approved.";
+  else if (/\/api\/admin\/providers\/[^/]+\/reject$/.test(path)) text = "Provider rejected.";
+  else if (/\/api\/admin\/certificates\/[^/]+\/approve$/.test(path)) text = "Certificate validated.";
+  else if (/\/api\/admin\/certificates\/[^/]+\/reject$/.test(path)) text = "Certificate rejected.";
+  else if (/\/suspend$/.test(path)) text = "Account suspended.";
+  else if (/\/reactivate$/.test(path)) text = "Account reactivated.";
+  else if (/\/unlock$/.test(path)) text = "Account unlocked.";
+  else if (/\/reset-password$/.test(path)) text = "Password reset.";
+  else if (path === "/api/provider/certificates") text = "Certificate submitted for review.";
+  if (text) window.dispatchEvent(new CustomEvent("zam-toast", { detail: text }));
 }
 
 export async function uploadImage(file: File, options?: { private?: boolean }) {
