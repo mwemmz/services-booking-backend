@@ -38,7 +38,7 @@ module.exports = {
   geo: {
     nominatimUrl: process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org',
     osrmUrl: process.env.OSRM_URL || 'https://router.project-osrm.org',
-    userAgent: process.env.GEO_USER_AGENT || 'ServiceHub/1.0 (contact: support@servicehub.app)',
+    userAgent: process.env.GEO_USER_AGENT || 'ZamServe/1.0',
   },
   payment: {
     apiUrl: process.env.PAYMENT_API_URL,

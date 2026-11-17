@@ -5,6 +5,8 @@ const { User } = require('../models');
  * and otherwise guarantees the demo admin exists so the dashboard is reachable.
  */
 const bootstrapAdmin = async () => {
+  // Older installs named the first admin after the project's working title.
+  await User.update({ name: 'ZamServe Admin' }, { where: { role: 'admin', name: 'ServiceHub Admin' } }).catch(() => {});
   const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
   try {
@@ -12,7 +14,7 @@ const bootstrapAdmin = async () => {
       const [user, created] = await User.findOrCreate({
         where: { email },
         defaults: {
-          name: 'ServiceHub Admin',
+          name: 'ZamServe Admin',
           email,
           password_hash: password,
           phone: '',
@@ -40,7 +42,7 @@ const bootstrapAdmin = async () => {
     const [user, created] = await User.findOrCreate({
       where: { email: 'admin@test.com' },
       defaults: {
-        name: 'ServiceHub Admin',
+        name: 'ZamServe Admin',
         email: 'admin@test.com',
         password_hash: 'admin123',
         phone: '',
